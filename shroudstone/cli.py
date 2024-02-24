@@ -49,22 +49,28 @@ def rename_replays(
         typer.Option(file_okay=False, dir_okay=True, exists=True, readable=True),
     ] = None,
     my_player_id: Optional[str] = None,
+    backup: bool = True,
+    dry_run: bool = False,
 ):
+    """Automatically rename your replay files (including player nicknames, races, map name, duration, result)"""
     config = Config.load()
     if replay_dir is None:
         replay_dir = get_replay_dir(config)
     if my_player_id is None:
         my_player_id = get_player_id(config)
-    renamer.rename_replays(replay_dir=replay_dir, my_player_id=my_player_id)
+    renamer.rename_replays(
+        replay_dir=replay_dir, my_player_id=my_player_id, dry_run=dry_run, backup=backup
+    )
 
 
 def get_player_id(config: Config) -> str:
     if config.my_player_id is None:
         typer.echo(
-            "You have not yet configured your player ID. To find this, visit "
-            "https://stormgateworld.com/leaderboards/ranked_1v1 and search for "
-            "your in-game nickname, click your account in the list, then click on "
-            "the characters next to the '#' icon to copy your player ID."
+            "You have not yet configured your player ID. To find it:\n"
+            "1. visit https://stormgateworld.com/leaderboards/ranked_1v1 and search for your in-game nickname.\n"
+            "2. find your account in the results and click on it.\n"
+            "3. click the characters next to the '#' icon to copy your player ID.\n"
+            "4. paste it below :)"
         )
         config.my_player_id = typer.prompt("Player ID")
     config.save()

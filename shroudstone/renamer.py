@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import logging
+from shutil import copytree
 from time import sleep
 from typing import NamedTuple
 from urllib.request import urlopen
@@ -21,7 +22,24 @@ BAD_CHARS = re.compile(r'[<>:"/\\|?*\0]')
 """Characters forbidden in filenames on Linux or Windows"""
 
 
-def rename_replays(replay_dir: Path, my_player_id: str):
+def backup_dir(replay_dir: Path, bu_dir: Path):
+    logger.warning(
+        f"Backing up your replays to {bu_dir}. "
+        "Please check the results after this run - subsequent runs will overwrite your backup!"
+    )
+    copytree(replay_dir, bu_dir, dirs_exist_ok=True)
+
+
+def rename_replays(
+    replay_dir: Path, my_player_id: str, dry_run: bool = False, backup: bool = True
+):
+    if backup:
+        bu_dir = replay_dir.parent / f"{replay_dir.name}.backup"
+        backup_dir(replay_dir, bu_dir)
+    else:
+        bu_dir = None
+        logger.warning("No backup being made! You asked for it!")
+    logger.info(f"Searching for unrenamed replays in {replay_dir}")
     unrenamed_replays = [
         x
         for x in map(ReplayFile.from_path, replay_dir.glob("**/CL*.SGReplay"))
@@ -45,11 +63,19 @@ def rename_replays(replay_dir: Path, my_player_id: str):
         match = find_match(matches, r)
         if match is not None:
             try:
-                rename_replay(r, match)
+                rename_replay(r, match, dry_run=dry_run)
             except Exception as e:
                 logger.error(f"Unexpected error handling {r.path}: {e}")
         else:
-            logger.error(f"No match found for {r.path.name} in stormgateworld match history.")
+            logger.error(
+                f"No match found for {r.path.name} in stormgateworld match history."
+            )
+
+    if bu_dir:
+        logger.warning(
+            f"Renaming completed. Your replays were backed up with to {bu_dir}. "
+            "Please check that nothing went wrong now - subsequent runs will overwrite your backup!"
+        )
 
 
 class ReplayFile(NamedTuple):
@@ -139,8 +165,10 @@ def find_match(matches: pd.DataFrame, replay: ReplayFile):
                 n2 = "?"
             logger.error(
                 f"Found time-based match for {replay.path.name} but couldn't find "
-                f"nicknames {n1!r}, {n2!r} in the replay header!"
+                f"nicknames {n1!r}, {n2!r} in the replay!"
             )
+            info = get_match_info(replay.path)
+            logger.error(f"{info=}")
 
 
 def nicknames_match(replay: ReplayFile, match: pd.Series):
@@ -152,15 +180,15 @@ def nicknames_match(replay: ReplayFile, match: pd.Series):
     except Exception:
         pass
     try:
-        p1 = match["us.player.nickname"].encode("utf-8")
-        p2 = match["them.player.nickname"].encode("utf-8")
-
+        p1 = match["us.player.nickname"]
+        p2 = match["them.player.nickname"]
         return {p1, p2} == set(info.player_nicknames)
     except Exception:
+        logger.exception("Error checking nicknames")
         return False
 
 
-def rename_replay(replay: ReplayFile, match: pd.Series):
+def rename_replay(replay: ReplayFile, match: pd.Series, dry_run: bool):
     us = match["us.player.nickname"]
     them = match["them.player.nickname"]
 
@@ -193,16 +221,22 @@ def rename_replay(replay: ReplayFile, match: pd.Series):
         time = replay.time.strftime("%Y-%m-%d %H.%M")
 
     try:
-        newname = f"{time} {result} {duration} {us} {r1}v{r2} {them} - {map_name}.SGReplay"
+        newname = (
+            f"{time} {result} {duration} {us} {r1}v{r2} {them} - {map_name}.SGReplay"
+        )
         target = replay.path.parent / newname
-        do_rename(replay.path, target)
+        do_rename(replay.path, target, dry_run=dry_run)
     except Exception as e:
         logger.error(f"Unexpected error renaming {replay.path}: {e}")
 
 
-def do_rename(source: Path, target: Path):
+def do_rename(source: Path, target: Path, dry_run: bool):
     if target.exists():
         logger.error(f"Not renaming {source}! {target.name} already exists!")
+        return
+
+    if dry_run:
+        logger.info("DRY RUN: Would have renamed {source} => {target.name}.")
         return
 
     logger.info(f"Renaming {source} => {target.name}.")
@@ -215,7 +249,7 @@ def do_rename(source: Path, target: Path):
             logger.warning(
                 f"Error renaming {source} => {target.name}, retrying with sanitized filename."
             )
-            do_rename(source, target.parent / new_name)
+            do_rename(source, target.parent / new_name, dry_run=dry_run)
         else:
             logger.error(f"Error renaming {source} => {target.name}: {e}")
 
