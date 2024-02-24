@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package stormgate;
+
+// protobuf schema for what I've been able to decipher in stormgate replays.
+// Obviously extremely incomplete.
+
+message Map {
+    string name = 2;
+}
+
+message Player {
+    string name = 3;
+}
+
+// Each chunk seems to be of the form 3: {1: {actual content}}
+// Since I don't know the meaning of those outer structs yet, I'm just putting them as inline messages:
+message ReplayChunk {
+    message Wrapper {
+        message ReplayContent {
+            oneof contenttype {
+                Map map = 3;
+                Player player = 37;
+            }
+        }
+        ReplayContent content = 1;
+    }
+    Wrapper inner = 3;
+}
+
