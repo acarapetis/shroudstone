@@ -24,7 +24,9 @@ World](https://www.stormgateworld.com/) team!
 
 ### On Windows
 
-1. Install Python 3.11 from the Microsoft Store.
+1. Install Python 3.11 using
+   [the Microsoft Store](https://apps.microsoft.com/detail/9nrwmjp3717k) or the
+   [official installers](https://www.python.org/downloads/).
 2. Open Command Prompt and type `pip install shroudstone` to install shroudstone.
 3. You can now invoke `python -m shroudstone rename-replays` from the command
    line to rename your replays. To avoid having to do this every time, `python
