@@ -40,7 +40,7 @@ def rename_replays(
             "Performing a dry run - will show what would happen but not actually touch anything."
         )
     elif backup:
-        bu_dir = config.data_dir / "ReplaysBackup"
+        bu_dir = replay_dir.parent / f"{replay_dir.name}.backup"
         backup_dir(replay_dir, bu_dir)
     else:
         bu_dir = None
