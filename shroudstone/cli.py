@@ -47,11 +47,15 @@ def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
 @app.command()
 def edit_config():
     """Open the shroudstone configuration file in your default text editor."""
+    if not config_file.exists():
+        Config().save()
     if platform.system() == "Windows":
-        subprocess.run(["start", config_file])
+        # .resolve() is crucial when python is installed from the microsoft store
+        realpath = config_file.resolve()
+        subprocess.run(["cmd", "/c", f"start {realpath}"])
     else:
         editor = os.environ.get("VISUAL", os.environ.get("EDITOR", "nano"))
-        subprocess.run([editor, config_file])
+        subprocess.run([editor, config_file.resolve()])
 
 
 @app.command()
