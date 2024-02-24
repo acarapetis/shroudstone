@@ -1,5 +1,7 @@
 # shroudstone
 
+[![PyPI](https://img.shields.io/pypi/v/shroudstone)](https://pypi.org/project/shroudstone/)
+
 Shroudstone is principally a simple tool to automatically renames replays of
 your Stormgate ladder games.
 
