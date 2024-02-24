@@ -10,7 +10,11 @@ message Map {
 }
 
 message Player {
-    string name = 3;
+    message PlayerName {
+        string nickname = 1;
+        string numbers = 2;
+    }
+    PlayerName name = 3;
 }
 
 // Each chunk seems to be of the form 3: {1: {actual content}}
@@ -20,7 +24,7 @@ message ReplayChunk {
         message ReplayContent {
             oneof contenttype {
                 Map map = 3;
-                Player player = 37;
+                Player player = 12;
             }
         }
         ReplayContent content = 1;

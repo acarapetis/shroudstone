@@ -12,9 +12,16 @@ class Map(_message.Message):
 
 class Player(_message.Message):
     __slots__ = ("name",)
+    class PlayerName(_message.Message):
+        __slots__ = ("nickname", "numbers")
+        NICKNAME_FIELD_NUMBER: _ClassVar[int]
+        NUMBERS_FIELD_NUMBER: _ClassVar[int]
+        nickname: str
+        numbers: str
+        def __init__(self, nickname: _Optional[str] = ..., numbers: _Optional[str] = ...) -> None: ...
     NAME_FIELD_NUMBER: _ClassVar[int]
-    name: str
-    def __init__(self, name: _Optional[str] = ...) -> None: ...
+    name: Player.PlayerName
+    def __init__(self, name: _Optional[_Union[Player.PlayerName, _Mapping]] = ...) -> None: ...
 
 class ReplayChunk(_message.Message):
     __slots__ = ("inner",)

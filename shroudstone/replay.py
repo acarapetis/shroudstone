@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-
+"""Stormgate replay parsing tools"""
 import gzip
 import sys
 from contextlib import contextmanager
@@ -62,11 +61,7 @@ def get_match_info(replay: Union[Path, BinaryIO]) -> MatchInfo:
         if content_type == "map":
             info.map_name = content.map.name
         if content_type == "player":
-            info.player_nicknames.append(content.player.name)
+            info.player_nicknames.append(content.player.name.nickname)
         if len(info.player_nicknames) >= 2 and info.map_name is not None:
             break
     return info
-
-
-if __name__ == "__main__":
-    print(get_match_info(Path(sys.argv[1])).model_dump_json(indent=2))
