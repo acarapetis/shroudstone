@@ -1,13 +1,19 @@
 # shroudstone
 
-Shroudstone is a command-line tool that automatically renames replays of
+Shroudstone is principally a simple tool to automatically renames replays of
 your Stormgate ladder games.
 
-Say goodbye to `CL44420-2024.02.03-08.28.SGReplay` and say hello to `2024-02-03
-08.28 L 03m03s Pox IvI Veni Vidi Vici - Broken Crown.SGReplay`.
+Say goodbye to 
 
-Shroudstone also acts as a general Python + CLI toolkit for working with
-Stormgate replays.
+      CL44420-2024.02.03-08.28.SGReplay
+
+and say hello to 
+
+      2024-02-03 08.28 L 03m03s Pox IvI Veni Vidi Vici - Broken Crown.SGReplay
+
+Shroudstone also acts as a general Python/CLI toolkit for working with
+Stormgate replays - right now it's probably not useful for much, but hopefully
+it will grow over time :)
 
 ## Installation & Usage
 
