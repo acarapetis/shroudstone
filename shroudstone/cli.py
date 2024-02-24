@@ -51,6 +51,15 @@ def rename_replays(
     my_player_id: Optional[str] = None,
     backup: bool = True,
     dry_run: bool = False,
+    reprocess: Annotated[
+        bool, typer.Option(help="Reprocess old replays that have already been renamed")
+    ] = False,
+    check_nicknames: Annotated[
+        bool,
+        typer.Option(
+            help="Check that nicknames in the replay match those from stormgateworld"
+        ),
+    ] = True,
 ):
     """Automatically rename your replay files (including player nicknames, races, map name, duration, result)"""
     config = Config.load()
@@ -59,7 +68,12 @@ def rename_replays(
     if my_player_id is None:
         my_player_id = get_player_id(config)
     renamer.rename_replays(
-        replay_dir=replay_dir, my_player_id=my_player_id, dry_run=dry_run, backup=backup
+        replay_dir=replay_dir,
+        my_player_id=my_player_id,
+        dry_run=dry_run,
+        backup=backup,
+        reprocess=reprocess,
+        check_nicknames=check_nicknames,
     )
 
 
