@@ -2,20 +2,23 @@
 
 [![PyPI](https://img.shields.io/pypi/v/shroudstone)](https://pypi.org/project/shroudstone/)
 
-Shroudstone is principally a simple tool to automatically renames replays of
-your Stormgate ladder games.
+Shroudstone is principally a tool to automatically rename replays of your
+Stormgate ladder games.
 
 Say goodbye to 
 
       CL44420-2024.02.03-08.28.SGReplay
 
-and say hello to 
+and say hello to
 
       2024-02-03 08.28 L 03m03s Pox IvI Veni Vidi Vici - Broken Crown.SGReplay
 
 Shroudstone also acts as a general Python/CLI toolkit for working with
-Stormgate replays - right now it's probably not useful for much, but hopefully
-it will grow over time :)
+Stormgate replays - right now it's probably not useful for much else, but
+hopefully it will grow over time :)
+
+Made possible by the great work of the [Stormgate
+World](https://www.stormgateworld.com/) team!
 
 ## Installation & Usage
 
@@ -35,3 +38,9 @@ using WSL - just `pip install shroudstone` and you should be good to go.
 
 If you're running Stormgate on Linux+Steam+Proton, hopefully this should also
 work for you - just `pip install shroudstone` and give it a shot.
+
+
+## Notes
+
+- Stormgate names your replays using your local time. After renaming, the times
+  will be in the UTC timezone, as on the Stormgate World leaderboard.
