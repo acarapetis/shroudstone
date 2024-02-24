@@ -40,6 +40,13 @@ If you're running Stormgate on Linux+Steam+Proton, hopefully this should also
 work for you - just `pip install shroudstone` and give it a shot.
 
 
+### Updating
+
+Regardless of your operating system, if you installed using `pip install
+shroudstone` originally, you can update to the newest version with a simple
+`pip install --upgrade shroudstone`.
+
+
 ## Notes
 
 - Stormgate names your replays using your local time. After renaming, the times
