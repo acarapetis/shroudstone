@@ -44,3 +44,10 @@ work for you - just `pip install shroudstone` and give it a shot.
 
 - Stormgate names your replays using your local time. After renaming, the times
   will be in the UTC timezone, as on the Stormgate World leaderboard.
+- Your settings are saved in %LOCALAPPDATA%/shroudstone/config.json on Windows
+  or ~/.local/share/shroudstone/config.json on Linux/WSL.
+- Your player ID, replay directory path and replay format string can be
+  configured by passing command-line options to `python -m shroudstone
+  rename-replays`; but you probably want to use the config file instead so you
+  don't have to provide them every time. Use `python -m shroudstone
+  edit-config` to edit the configuration file.

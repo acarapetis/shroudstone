@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 import platform
+import subprocess
 from typing import Annotated, Optional
 
 from rich.console import Console
@@ -11,7 +12,7 @@ from rich.logging import RichHandler
 import typer
 
 from shroudstone import renamer, replay
-from shroudstone.config import Config
+from shroudstone.config import Config, config_file, DEFAULT_FORMAT
 
 app = typer.Typer()
 
@@ -44,6 +45,16 @@ def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
 
 
 @app.command()
+def edit_config():
+    """Open the shroudstone configuration file in your default text editor."""
+    if platform.system() == "Windows":
+        subprocess.run(["start", config_file])
+    else:
+        editor = os.environ.get("VISUAL", os.environ.get("EDITOR", "nano"))
+        subprocess.run([editor, config_file])
+
+
+@app.command()
 def create_rename_replays_shortcut():
     """Create a desktop icon to launch the rename-replays script."""
     if platform.system() != "Windows":
@@ -62,7 +73,9 @@ pause >nul
 """,
                 file=f,
             )
-        logger.info(f"Batch file created at {batch} - should be visible on your desktop :)")
+        logger.info(
+            f"Batch file created at {batch} - should be visible on your desktop :)"
+        )
 
 
 @app.command()
