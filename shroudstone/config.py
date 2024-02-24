@@ -21,10 +21,13 @@ data_dir = _platform_data_dir() / "shroudstone"
 data_dir.mkdir(parents=True, exist_ok=True)
 config_file = data_dir / "config.json"
 
+DEFAULT_FORMAT = "{time:%Y-%m-%d %H.%M} {result:.1} {duration} {us} {r1:.1}v{r2:.1} {them} - {map_name}.SGReplay"
+"""Default format string for new replay filenames"""
 
 class Config(BaseModel):
     my_player_id: Optional[str] = None
     replay_dir: Optional[Path] = None
+    replay_name_format: str = DEFAULT_FORMAT
 
     @staticmethod
     def load():

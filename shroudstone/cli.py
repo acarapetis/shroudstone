@@ -72,6 +72,9 @@ def rename_replays(
         typer.Option(file_okay=False, dir_okay=True, exists=True, readable=True),
     ] = None,
     my_player_id: Optional[str] = None,
+    format: Annotated[
+        Optional[str], typer.Option(help=f"Format string for new replay filenames\n(e.g. '{DEFAULT_FORMAT}')")
+    ] = None,
     backup: bool = True,
     dry_run: bool = False,
     reprocess: Annotated[
@@ -97,6 +100,7 @@ def rename_replays(
         backup=backup,
         reprocess=reprocess,
         check_nicknames=check_nicknames,
+        format=format or config.replay_name_format,
     )
 
 

@@ -12,22 +12,25 @@ from urllib.request import urlopen, Request
 import pandas as pd
 
 from shroudstone.replay import get_match_info
-from shroudstone import config, __version__
+from shroudstone import __version__
 
 logger = logging.getLogger(__name__)
 
 STORMGATEWORLD = "https://api.stormgateworld.com"
+
 TOLERANCE = timedelta(seconds=90)
 """Maximum time difference to consider games a match"""
+
 BAD_CHARS = re.compile(r'[<>:"/\\|?*\0]')
 """Characters forbidden in filenames on Linux or Windows"""
+
 USER_AGENT = f"shroudstone v{__version__}"
 """User-Agent to use in requests to the API"""
-
 
 def rename_replays(
     replay_dir: Path,
     my_player_id: str,
+    format: str,
     dry_run: bool = False,
     backup: bool = True,
     reprocess: bool = False,
@@ -76,7 +79,7 @@ def rename_replays(
         match = find_match(matches, r, check_nicknames=check_nicknames)
         if match is not None:
             try:
-                rename_replay(r, match, dry_run=dry_run)
+                rename_replay(r, match, dry_run=dry_run, format=format)
             except Exception as e:
                 logger.error(f"Unexpected error handling {r.path}: {e}")
         else:
@@ -214,42 +217,41 @@ def find_match(matches: pd.DataFrame, replay: ReplayFile, check_nicknames: bool)
             )
 
 
-def rename_replay(replay: ReplayFile, match: pd.Series, dry_run: bool):
-    us = match["us.player.nickname"]
-    them = match["them.player.nickname"]
+def rename_replay(replay: ReplayFile, match: pd.Series, dry_run: bool, format: str):
+    parts = {}
+    parts["us"] = match["us.player.nickname"]
+    parts["them"] = match["them.player.nickname"]
 
     try:
-        r1 = match["us.race"][0].upper()
+        parts["r1"] = match["us.race"][0].capitalize()
     except Exception:
-        r1 = "?"
+        parts["r1"] = "?"
 
     try:
-        r2 = match["them.race"][0].upper()
+        parts["r2"] = match["them.race"][0].capitalize()
     except Exception:
-        r2 = "?"
+        parts["r2"] = "?"
 
     try:
-        result = match["us.result"][0].upper()
+        parts["result"] = match["us.result"].capitalize()
     except Exception:
-        result = "?"
+        parts["result"] = "?"
 
     try:
-        map_name = match["map_name"]
+        parts["map_name"] = match["map_name"]
     except Exception:
-        map_name = "Unknown Map"
+        parts["map_name"] = "Unknown Map"
 
     try:
         minutes, seconds = divmod(int(match["duration"]), 60)
-        duration = f"{minutes:02d}m{seconds:02d}s"
-        time = match["created_at"].strftime("%Y-%m-%d %H.%M")
+        parts["duration"] = f"{minutes:02d}m{seconds:02d}s"
+        parts["time"] = match["created_at"]
     except Exception:
-        duration = "??m??s"
-        time = replay.time.strftime("%Y-%m-%d %H.%M")
+        parts["duration"] = "??m??s"
+        parts["time"] = replay.time.strftime("")
 
     try:
-        newname = (
-            f"{time} {result} {duration} {us} {r1}v{r2} {them} - {map_name}.SGReplay"
-        )
+        newname = format.format(**parts)
         target = replay.path.parent / newname
         do_rename(replay.path, target, dry_run=dry_run)
     except Exception as e:
