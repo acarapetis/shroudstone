@@ -1,4 +1,5 @@
 """The shroudstone CLI"""
+
 import logging
 import os
 from pathlib import Path
@@ -43,6 +44,28 @@ def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
 
 
 @app.command()
+def create_rename_replays_shortcut():
+    """Create a desktop icon to launch the rename-replays script."""
+    if platform.system() != "Windows":
+        logger.error("This subcommand is only currently available on Windows.")
+    else:
+        batch = (
+            Path(os.environ["USERPROFILE"]) / "Desktop" / "Rename Stormgate Replays.bat"
+        )
+        with batch.open("wt") as f:
+            print(
+                """
+@echo off
+python -m shroudstone rename-replays
+echo Press any key to close this window.
+pause >nul
+""",
+                file=f,
+            )
+        logger.info(f"Batch file created at {batch} - should be visible on your desktop :)")
+
+
+@app.command()
 def rename_replays(
     replay_dir: Annotated[
         Optional[Path],
@@ -84,7 +107,7 @@ def get_player_id(config: Config) -> str:
             "1. visit https://stormgateworld.com/leaderboards/ranked_1v1 and search for your in-game nickname.\n"
             "2. find your account in the results and click on it.\n"
             "3. click the characters next to the '#' icon to copy your player ID.\n"
-            "4. paste it below :)"
+            "4. paste it below and press enter :)"
         )
         config.my_player_id = typer.prompt("Player ID")
     config.save()
