@@ -133,7 +133,7 @@ def guess_replay_dir() -> Optional[Path]:
 
         tail = "AppData/Local/Stormgate/Saved/Replays"
         paths = [
-            *steammnt.glob("*/users/steamuser/{tail}"),
+            *steammnt.glob(f"*/users/steamuser/{tail}"),
             *wslmnt.glob(f"*/Users/*/{tail}"),
             *wslmnt.glob(f"*/Documents and Settings/*/{tail}"),
         ]
