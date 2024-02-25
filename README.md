@@ -26,7 +26,8 @@ World](https://www.stormgateworld.com/) team!
 
 1. Install Python 3.11 using
    [the Microsoft Store](https://apps.microsoft.com/detail/9nrwmjp3717k) or the
-   [official installers](https://www.python.org/downloads/).
+   [official installer](https://www.python.org/downloads/). If using the
+   official installer, make sure to check the "add python.exe to PATH" option.
 2. Open Command Prompt and type `pip install shroudstone` to install shroudstone.
 3. You can now invoke `python -m shroudstone rename-replays` from the command
    line to rename your replays. To avoid having to do this every time, `python
@@ -40,6 +41,7 @@ using WSL - just `pip install shroudstone` and you should be good to go.
 
 If you're running Stormgate on Linux+Steam+Proton, hopefully this should also
 work for you - just `pip install shroudstone` and give it a shot.
+
 
 ### Updating
 
