@@ -160,9 +160,10 @@ def player_matches(player_id: str, page: int):
         return None
     data = [flatten_match(player_id, x) for x in data]
     matches = pd.json_normalize([x for x in data if x is not None])
-    matches["ended_at"] = pd.to_datetime(matches["ended_at"])
-    matches["created_at"] = pd.to_datetime(matches["created_at"])
-    return matches
+    return matches.assign(
+        ended_at=pd.to_datetime(matches["ended_at"]),
+        created_at=pd.to_datetime(matches["created_at"]),
+    )
 
 
 def flatten_match(player_id: str, match: dict):
