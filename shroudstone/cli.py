@@ -69,6 +69,14 @@ def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
 
 
 @app.command(rich_help_panel="Tools for nerds")
+def config_path():
+    """Print the real path to the shroudstone configuration file."""
+    if not config_file.exists():
+        Config().save()
+    typer.echo(config_file.resolve())
+
+
+@app.command(rich_help_panel="Tools for nerds")
 def edit_config():
     """Open the shroudstone configuration file in your default text editor."""
     if not config_file.exists():

@@ -41,7 +41,6 @@ using WSL - just `pip install shroudstone` and you should be good to go.
 If you're running Stormgate on Linux+Steam+Proton, hopefully this should also
 work for you - just `pip install shroudstone` and give it a shot.
 
-
 ### Updating
 
 Regardless of your operating system, if you installed using `pip install
@@ -51,10 +50,15 @@ shroudstone` originally, you can update to the newest version with a simple
 
 ## Notes
 
+- Shroudstone can currently only rename 1v1 ladder games - this is because it
+  relies on the Stormgate World API to fetch most of its information.
 - Stormgate names your replays using your local time. After renaming, the times
   will be in the UTC timezone, as on the Stormgate World leaderboard.
 - Your settings are saved in %LOCALAPPDATA%/shroudstone/config.json on Windows
-  or ~/.local/share/shroudstone/config.json on Linux/WSL.
+  or ~/.local/share/shroudstone/config.json on Linux/WSL. Note that if you're
+  using Python from the Microsoft Store, this %LOCALAPPDATA% might not be
+  what you expect - use `python -m shroudstone config-path` to find out exactly
+  where it is.
 - Your player ID, replay directory path and replay format string can be
   configured by passing command-line options to `python -m shroudstone
   rename-replays`; but you probably want to use the config file instead so you
@@ -88,3 +92,9 @@ Format strings can use the following values:
 * `duration` (str): Game duration (e.g. "15m10s")
 * `result` (str): Your game result (Win, Loss, Unknown)
 * `map_name` (str): Name of the map on which the game was played (extracted from replay file)
+
+
+## Contributing
+
+Contributions are welcome - feel free to open a PR, or message Pox on the
+Stormgate Discord if you want to discuss with me first.
