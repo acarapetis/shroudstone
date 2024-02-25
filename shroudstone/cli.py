@@ -25,7 +25,7 @@ logging.captureWarnings(True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(message)s",
-    handlers=[RichHandler(console=console)],
+    handlers=[RichHandler(console=console, show_path=False, show_time=False)],
 )
 logger = logging.getLogger(__name__)
 
