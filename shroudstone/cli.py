@@ -42,6 +42,7 @@ def callback(
     version: Annotated[
         bool,
         typer.Option(
+            "--version",
             help="Show version information for your shroudstone installation",
             callback=version,
         ),
