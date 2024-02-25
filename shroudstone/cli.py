@@ -139,6 +139,12 @@ def rename_replays(
             help="Check that nicknames in the replay match those from stormgateworld"
         ),
     ] = True,
+    clear_cache: Annotated[
+        bool,
+        typer.Option(
+            help="Clear the local match cache and re-retrieve all data from Stormgate World."
+        )
+    ] = False,
 ):
     """Automatically rename your replay files.
 
@@ -154,11 +160,11 @@ def rename_replays(
 
     * us: Your nickname
     * them: Opponent nickname
-    * r1: Race/faction you played (Vanguard or Infernal)
+    * r1: Race/faction you played (Vanguard or Infernals)
     * r2: Race/faction opponent played
     * time (datetime): Creation time of match
     * duration: Game duration (e.g. "15m10s")
-    * result: Your game result (Win, Loss, Unknown)
+    * result: Your game result (Win, Loss, Undecided)
     * map_name (str): Name of the map on which the game was played (extracted from replay file)
     """
     config = Config.load()
@@ -166,6 +172,8 @@ def rename_replays(
         replay_dir = get_replay_dir(config)
     if my_player_id is None:
         my_player_id = get_player_id(config)
+    if clear_cache:
+        renamer.clear_cached_matches(my_player_id)
     renamer.rename_replays(
         replay_dir=replay_dir,
         my_player_id=my_player_id,
@@ -180,7 +188,7 @@ def rename_replays(
 def get_player_id(config: Config) -> str:
     if config.my_player_id is None:
         typer.echo(
-            "You have not yet configured your player ID. To find it:\n"
+            "You have not yet configured your Stormgate World player ID. To find it:\n"
             "1. visit https://stormgateworld.com/leaderboards/ranked_1v1 and search for your in-game nickname.\n"
             "2. find your account in the results and click on it.\n"
             "3. click the characters next to the '#' icon to copy your player ID.\n"

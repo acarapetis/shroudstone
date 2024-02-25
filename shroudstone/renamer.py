@@ -1,4 +1,5 @@
 """Rename stormgate replays to include useful info in filename"""
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -6,12 +7,13 @@ import re
 import logging
 from shutil import copytree
 from time import sleep
-from typing import NamedTuple
+from typing import List, NamedTuple, Optional
 from urllib.request import urlopen, Request
 
 import pandas as pd
 
 from shroudstone.replay import get_match_info
+from shroudstone.config import data_dir
 from shroudstone import __version__
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,10 @@ BAD_CHARS = re.compile(r'[<>:"/\\|?*\0]')
 
 USER_AGENT = f"shroudstone v{__version__}"
 """User-Agent to use in requests to the API"""
+
+cache_dir = data_dir / "stormgateworld-cache"
+"""Directory in which match data is cached"""
+
 
 def rename_replays(
     replay_dir: Path,
@@ -70,22 +76,36 @@ def rename_replays(
 
     n = len(replays)
     earliest_time = min(x.time for x in replays)
-    logger.info(
-        f"Found {n} unrenamed replays going back to {earliest_time}. Fetching matches from stormgateworld now."
-    )
-    matches = player_matches_since(my_player_id, earliest_time)
+    logger.info(f"Found {n} unrenamed replays going back to {earliest_time}.")
+    matches = get_player_matches(my_player_id)
 
     for r in replays:
-        match = find_match(matches, r, check_nicknames=check_nicknames)
-        if match is not None:
+        try:
+            match = find_match(matches, r, check_nicknames=check_nicknames)
+        except NicknameMismatch as e:
+            logger.error(
+                f"Found time-based match for {r.path.name} "
+                f"but nicknames didn't match: {e.leaderboard_nicknames} != {e.replay_nicknames}. "
+                "Provide --no-check-nicknames to turn off this check and accept this as a match anyway."
+            )
+        except NoMatch:
+            info = get_match_info(r.path)
+            if len(info.player_nicknames) == 1:
+                nick = info.player_nicknames[0]
+                logger.info(
+                    f"No match found for {r.path.name}. Only one player was found ({nick})"
+                    ", so this is probably a match vs AI."
+                )
+            else:
+                logger.warning(
+                    f"No match found for {r.path.name} in stormgateworld match history."
+                    "Could be a custom game?"
+                )
+        else:
             try:
                 rename_replay(r, match, dry_run=dry_run, format=format)
             except Exception as e:
                 logger.error(f"Unexpected error handling {r.path}: {e}")
-        else:
-            logger.error(
-                f"No match found for {r.path.name} in stormgateworld match history."
-            )
 
     if bu_dir:
         logger.warning(
@@ -126,30 +146,78 @@ class ReplayFile(NamedTuple):
         return ReplayFile(path, time)
 
 
-def player_matches_since(player_id: str, time: datetime):
+def clear_cached_matches(player_id: str):
+    logger.info(f"Clearing local match cache.")
+    cache_file = cache_dir / f"{player_id}.csv"
+    cache_file.unlink(missing_ok=True)
+
+
+def load_cached_matches(player_id: str) -> Optional[pd.DataFrame]:
+    cache_dir.mkdir(exist_ok=True, parents=True)
+    cache_file = cache_dir / f"{player_id}.csv"
+    if cache_file.exists():
+        return pd.read_csv(
+            cache_file, parse_dates=["created_at", "ended_at"], index_col="match_id"
+        )
+
+
+def save_cached_matches(player_id: str, matches: pd.DataFrame):
+    logger.info(f"Saving {len(matches)} matches to local cache.")
+    cache_dir.mkdir(exist_ok=True, parents=True)
+    cache_file = cache_dir / f"{player_id}.csv"
+    matches.to_csv(cache_file, index=True)
+
+
+def get_player_matches(player_id: str, reset_cache: bool = False):
+    """Get the complete set of matches for the player of interest.
+
+    We make the assumption that matches are only ever added going forward in
+    time, allowing us to start with the most recent matches and request back
+    only as far as required until we hit the last cached match."""
+    cached_matches = load_cached_matches(player_id)
+    if cached_matches is None:
+        last_cached_match_time = datetime(1970, 1, 1, 0, 0, 0)
+        n = 0
+        logger.info(
+            f"No local match cache found for {player_id}, requesting complete match history."
+        )
+    else:
+        last_cached_match_time = cached_matches.created_at.max()
+        n = len(cached_matches)
+        logger.info(
+            f"Loaded {n} matches from local cache, most recent dated {last_cached_match_time}."
+        )
+
     page = 1
-    matches = player_matches(player_id, page=page)
+    logger.info(
+        f"Requesting most recent matches for {player_id} from Stormgate World API."
+    )
+    matches = fetch_player_matches_page(player_id, page=page)
     if matches is None:
         raise Exception(
-            "Could not find any matches for {player_id=} - check this is correct!"
+            "Could not find any matches for {player_id=} - check this player_id is correct!"
         )
-    while matches.created_at.min() > time:
+    # Add an hour's padding to avoid any weird edge cases
+    while matches.created_at.min() > last_cached_match_time - timedelta(hours=1):
         sleep(1)  # Be nice to the API servers! You can wait a few seconds!
-        logger.info(f"Got matches back to {matches.created_at.min()}, going further.")
+        logger.info(
+            f"Got matches back to {matches.created_at.min()}, requesting next page from API."
+        )
         page += 1
-        next_page = player_matches(player_id, page=page)
+        next_page = fetch_player_matches_page(player_id, page=page)
         if next_page is None:
-            logger.warning(
-                f"Could only fetch back to {matches.created_at.min()} "
-                "from stormgateworld but you have unrenamed replays from before this.",
-            )
-            return matches.reset_index(drop=True)
+            break
         matches = pd.concat([matches, next_page])
-    return matches.reset_index(drop=True)
+    if cached_matches is not None:
+        matches = pd.concat([cached_matches, matches])
+        dups = matches.index.duplicated(keep="last")
+        matches = matches[~dups]
+    matches = matches.sort_values(["created_at", "match_id"])
+    save_cached_matches(player_id, matches)
+    return matches
 
 
-def player_matches(player_id: str, page: int):
-    logger.info(f"Fetching match history page {page}...")
+def fetch_player_matches_page(player_id: str, page: int):
     request = Request(
         f"{STORMGATEWORLD}/v0/players/{player_id}/matches?page={page}",
         headers={"User-Agent": USER_AGENT},
@@ -163,7 +231,7 @@ def player_matches(player_id: str, page: int):
     return matches.assign(
         ended_at=pd.to_datetime(matches["ended_at"]),
         created_at=pd.to_datetime(matches["created_at"]),
-    )
+    ).set_index("match_id")
 
 
 def flatten_match(player_id: str, match: dict):
@@ -181,6 +249,16 @@ def flatten_match(player_id: str, match: dict):
     return match
 
 
+class NoMatch(Exception):
+    pass
+
+
+@dataclass
+class NicknameMismatch(Exception):
+    leaderboard_nicknames: List[str]
+    replay_nicknames: List[str]
+
+
 def find_match(matches: pd.DataFrame, replay: ReplayFile, check_nicknames: bool):
     """Given a replay file and a list of matches from stormgateworld, find the
     closest match in time with the correct nicknames."""
@@ -194,15 +272,11 @@ def find_match(matches: pd.DataFrame, replay: ReplayFile, check_nicknames: bool)
         except Exception:
             pass
 
-        try:
-            n1 = match["us.player.nickname"]
-            n2 = match["them.player.nickname"]
-        except Exception:
-            n1 = "?"
-            n2 = "?"
-
         if not check_nicknames:
             return match
+
+        n1 = match.get("us.player.nickname")
+        n2 = match.get("them.player.nickname")
 
         nickname_diff = {n1, n2}.symmetric_difference(info.player_nicknames)
 
@@ -211,11 +285,9 @@ def find_match(matches: pd.DataFrame, replay: ReplayFile, check_nicknames: bool)
         else:
             ns1 = sorted([n1, n2])
             ns2 = sorted(info.player_nicknames)
-            logger.error(
-                f"Found time-based match for {replay.path.name} "
-                f"but nicknames didn't match: {ns1} != {ns2}. "
-                "Provide --no-check-nicknames to turn off this check and accept this as a match anyway."
-            )
+            raise NicknameMismatch(ns1, ns2)
+
+    raise NoMatch()
 
 
 def rename_replay(replay: ReplayFile, match: pd.Series, dry_run: bool, format: str):

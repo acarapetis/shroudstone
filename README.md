@@ -88,11 +88,11 @@ Format strings can use the following values:
 
 * `us` (str): Your nickname
 * `them` (str): Opponent nickname
-* `r1` (str): Race/faction you played (Vanguard or Infernal)
+* `r1` (str): Race/faction you played (Vanguard or Infernals)
 * `r2` (str): Race/faction opponent played
 * `time` (datetime): Creation time of match
 * `duration` (str): Game duration (e.g. "15m10s")
-* `result` (str): Your game result (Win, Loss, Unknown)
+* `result` (str): Your game result (Win, Loss, Undecided)
 * `map_name` (str): Name of the map on which the game was played (extracted from replay file)
 
 
