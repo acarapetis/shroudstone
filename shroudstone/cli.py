@@ -1,20 +1,24 @@
-"""The shroudstone CLI"""
+"""shroudstone is a tool for managing Stormgate replays.
+
+To get started renaming your replays, use [b]rename-replays --help[/b] to view
+options or [b]rename-replays[/b] to jump straight in."""
 
 import logging
 import os
 from pathlib import Path
 import platform
 import subprocess
+import sys
 from typing import Annotated, Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
 import typer
 
-from shroudstone import renamer, replay
+from shroudstone import renamer, replay, __version__
 from shroudstone.config import Config, config_file, DEFAULT_FORMAT
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich", help=sys.modules[__name__].__doc__)
 
 console = Console(stderr=True)
 logging.captureWarnings(True)
@@ -26,13 +30,33 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@app.command()
+def version(value: bool):
+    if value:
+        typer.echo(f"Shroudstone v{__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def callback(
+    ctx: typer.Context,
+    version: Annotated[
+        bool,
+        typer.Option(
+            help="Show version information for your shroudstone installation",
+            callback=version,
+        ),
+    ] = False,
+):
+    pass
+
+
+@app.command(rich_help_panel="Tools for nerds")
 def get_replay_info(replay_file: typer.FileBinaryRead):
     """Extract information from a replay, outputting it in JSON format."""
     typer.echo(replay.get_match_info(replay_file).model_dump_json(indent=2))
 
 
-@app.command()
+@app.command(rich_help_panel="Tools for nerds")
 def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
     """Extract a stormgate replay into a directory containing individual protoscope messages."""
     output_directory.mkdir(exist_ok=True, parents=True)
@@ -44,7 +68,7 @@ def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
     )
 
 
-@app.command()
+@app.command(rich_help_panel="Tools for nerds")
 def edit_config():
     """Open the shroudstone configuration file in your default text editor."""
     if not config_file.exists():
@@ -58,7 +82,7 @@ def edit_config():
         subprocess.run([editor, config_file.resolve()])
 
 
-@app.command()
+@app.command(rich_help_panel="Replay renaming")
 def create_rename_replays_shortcut():
     """Create a desktop icon to launch the rename-replays script."""
     if platform.system() != "Windows":
@@ -82,7 +106,7 @@ pause >nul
         )
 
 
-@app.command()
+@app.command(rich_help_panel="Replay renaming")
 def rename_replays(
     replay_dir: Annotated[
         Optional[Path],
@@ -90,7 +114,10 @@ def rename_replays(
     ] = None,
     my_player_id: Optional[str] = None,
     format: Annotated[
-        Optional[str], typer.Option(help=f"Format string for new replay filenames\n(e.g. '{DEFAULT_FORMAT}')")
+        Optional[str],
+        typer.Option(
+            help=f"Format string for new replay filenames\n(e.g. '{DEFAULT_FORMAT}')"
+        ),
     ] = None,
     backup: bool = True,
     dry_run: bool = False,
@@ -104,7 +131,27 @@ def rename_replays(
         ),
     ] = True,
 ):
-    """Automatically rename your replay files (including player nicknames, races, map name, duration, result)"""
+    """Automatically rename your replay files.
+
+    The first time you run this, you will be asked for your player_id (and your
+    replay directory if we can not find it automatically). These values are
+    then stored in the configuration file for future runs.
+
+    To customize the naming of your replays, you can provide a python format
+    string in the --format option, or (preferably) edit the format string in
+    your config file (see the [b]edit-config[/b] command).
+
+    Format strings can use the following values:
+
+    * us: Your nickname
+    * them: Opponent nickname
+    * r1: Race/faction you played (Vanguard or Infernal)
+    * r2: Race/faction opponent played
+    * time (datetime): Creation time of match
+    * duration: Game duration (e.g. "15m10s")
+    * result: Your game result (Win, Loss, Unknown)
+    * map_name (str): Name of the map on which the game was played (extracted from replay file)
+    """
     config = Config.load()
     if replay_dir is None:
         replay_dir = get_replay_dir(config)

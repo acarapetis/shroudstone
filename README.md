@@ -60,3 +60,31 @@ shroudstone` originally, you can update to the newest version with a simple
   rename-replays`; but you probably want to use the config file instead so you
   don't have to provide them every time. Use `python -m shroudstone
   edit-config` to edit the configuration file.
+
+
+## Customizing replay names
+
+You can customize the filenames of your renamed replays by editing the format
+string in your config file. (Use `python -m shroudstone edit-config` to open
+the config file in a text editor.)
+
+The default format string is
+
+     {time:%Y-%m-%d %H.%M} {result:.1} {duration} {us} {r1:.1}v{r2:.1} {them} - {map_name}.SGReplay
+
+which results in e.g.
+
+      2024-02-03 08.28 L 03m03s Pox IvI Veni Vidi Vici - Broken Crown.SGReplay
+
+Note the usage of `:.1` to take just the first letter of the race and result strings.
+
+Format strings can use the following values:
+
+* `us` (str): Your nickname
+* `them` (str): Opponent nickname
+* `r1` (str): Race/faction you played (Vanguard or Infernal)
+* `r2` (str): Race/faction opponent played
+* `time` (datetime): Creation time of match
+* `duration` (str): Game duration (e.g. "15m10s")
+* `result` (str): Your game result (Win, Loss, Unknown)
+* `map_name` (str): Name of the map on which the game was played (extracted from replay file)
