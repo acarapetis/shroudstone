@@ -79,17 +79,20 @@ def config_path():
 
 
 @app.command(rich_help_panel="Tools for nerds")
-def edit_config():
+def edit_config(xdg_open: bool = False):
     """Open the shroudstone configuration file in your default text editor."""
     if not config_file.exists():
         Config().save()
+    realpath = config_file.resolve()
     if platform.system() == "Windows":
         # .resolve() is crucial when python is installed from the microsoft store
-        realpath = config_file.resolve()
         subprocess.run(["cmd", "/c", f"start {realpath}"])
     else:
-        editor = os.environ.get("VISUAL", os.environ.get("EDITOR", "nano"))
-        subprocess.run([editor, config_file.resolve()])
+        if xdg_open:
+            editor = "xdg-open"
+        else:
+            editor = os.environ.get("VISUAL", os.environ.get("EDITOR", "nano"))
+        subprocess.run([editor, realpath])
 
 
 @app.command(rich_help_panel="Replay renaming")

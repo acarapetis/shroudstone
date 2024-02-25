@@ -8,26 +8,21 @@ import logging
 from shutil import copytree
 from time import sleep
 from typing import List, NamedTuple, Optional
-from urllib.request import urlopen, Request
 
 import pandas as pd
 
 from shroudstone.replay import get_match_info
 from shroudstone.config import data_dir
-from shroudstone import __version__
+import shroudstone.stormgateworld as sgw
 
 logger = logging.getLogger(__name__)
 
-STORMGATEWORLD = "https://api.stormgateworld.com"
 
 TOLERANCE = timedelta(seconds=90)
 """Maximum time difference to consider games a match"""
 
 BAD_CHARS = re.compile(r'[<>:"/\\|?*\0]')
 """Characters forbidden in filenames on Linux or Windows"""
-
-USER_AGENT = f"shroudstone v{__version__}"
-"""User-Agent to use in requests to the API"""
 
 cache_dir = data_dir / "stormgateworld-cache"
 """Directory in which match data is cached"""
@@ -218,12 +213,7 @@ def get_player_matches(player_id: str, reset_cache: bool = False):
 
 
 def fetch_player_matches_page(player_id: str, page: int):
-    request = Request(
-        f"{STORMGATEWORLD}/v0/players/{player_id}/matches?page={page}",
-        headers={"User-Agent": USER_AGENT},
-    )
-    with urlopen(request) as f:
-        data = json.load(f)["matches"]
+    data = sgw.api_request(f"/v0/players/{player_id}/matches?page={page}").get("matches")
     if not data:
         return None
     data = [flatten_match(player_id, x) for x in data]
