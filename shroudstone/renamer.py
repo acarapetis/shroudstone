@@ -267,10 +267,8 @@ def find_match(matches: pd.DataFrame, replay: ReplayFile, check_nicknames: bool)
     candidates = df[delta < TOLERANCE].sort_values("delta")
     for _, match in candidates.iterrows():
         info = get_match_info(replay.path)
-        try:
-            match["map_name"] = info.map_name
-        except Exception:
-            pass
+        match["map_name"] = info.map_name or "UnknownMap"
+        match["build_number"] = info.build_number
 
         if not check_nicknames:
             return match
@@ -310,10 +308,8 @@ def rename_replay(replay: ReplayFile, match: pd.Series, dry_run: bool, format: s
     except Exception:
         parts["result"] = "?"
 
-    try:
-        parts["map_name"] = match["map_name"]
-    except Exception:
-        parts["map_name"] = "Unknown Map"
+    parts["map_name"] = match["map_name"]
+    parts["build_number"] = match["build_number"]
 
     try:
         minutes, seconds = divmod(int(match["duration"]), 60)

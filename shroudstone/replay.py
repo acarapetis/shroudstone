@@ -1,11 +1,10 @@
 """Stormgate replay parsing tools"""
 import gzip
-import sys
+import struct
 from contextlib import contextmanager
 from pathlib import Path
 from pydantic import BaseModel
 from typing import BinaryIO, Iterable, List, Optional, Union
-
 from .stormgate_pb2 import ReplayChunk
 
 
@@ -18,6 +17,20 @@ def decompress(replay: Union[Path, BinaryIO]):
         replay.seek(16)
         with gzip.GzipFile(fileobj=replay) as f2:
             yield f2
+
+
+def get_build_number(replay: Union[Path, BinaryIO]) -> int:
+    """Find the Stormgate version number that produced a given replay file.
+
+    This is the number that can be found at the start of unrenamed replays,
+    e.g. 44420 in CL44420-2024.01.31-16.23.SGReplay; but it is also stored in
+    the 16-byte header, so we get it from there instead."""
+    if isinstance(replay, Path):
+        replay = replay.open("rb")
+    replay.seek(12)
+    (x,) = struct.unpack("<i", replay.read(4))
+    replay.seek(0)
+    return x
 
 
 def read_varint(f) -> Optional[int]:
@@ -47,13 +60,14 @@ def split_replay(replay: Union[Path, BinaryIO]) -> Iterable[bytes]:
 
 
 class MatchInfo(BaseModel):
+    build_number: int
     player_nicknames: List[str] = []
     map_name: Optional[str] = None
 
 
 def get_match_info(replay: Union[Path, BinaryIO]) -> MatchInfo:
     """Parse what we can from a stormgate replay."""
-    info = MatchInfo()
+    info = MatchInfo(build_number=get_build_number(replay))
     for bytestring in split_replay(replay):
         chunk = ReplayChunk.FromString(bytestring)
         content = chunk.inner.content

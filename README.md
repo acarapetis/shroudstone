@@ -94,6 +94,7 @@ Format strings can use the following values:
 * `duration` (str): Game duration (e.g. "15m10s")
 * `result` (str): Your game result (Win, Loss, Undecided)
 * `map_name` (str): Name of the map on which the game was played (extracted from replay file)
+* `build_number` (int): Build number of Stormgate version on which the game was played (extracted from replay file)
 
 
 ## Contributing

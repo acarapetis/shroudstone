@@ -166,6 +166,7 @@ def rename_replays(
     * duration: Game duration (e.g. "15m10s")
     * result: Your game result (Win, Loss, Undecided)
     * map_name (str): Name of the map on which the game was played (extracted from replay file)
+    * build_number (int): Build number of Stormgate version on which the game was played (extracted from replay file)
     """
     config = Config.load()
     if replay_dir is None:
