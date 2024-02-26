@@ -9,7 +9,8 @@ from pathlib import Path
 import platform
 import subprocess
 import sys
-from typing import Annotated, Optional
+from typing import Optional
+from typing_extensions import Annotated
 
 from rich.console import Console
 from rich.logging import RichHandler
