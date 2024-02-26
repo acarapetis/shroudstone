@@ -5,12 +5,25 @@ import platform
 import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import showinfo, showwarning
-from tkinter.scrolledtext import ScrolledText
 from tkinter.font import Font, families, nametofont
 import webbrowser
 
+from rich.console import Console
+from rich.logging import RichHandler
+
 from shroudstone import cli, config, stormgateworld as sgw
 from .jobs import TkWithJobs
+
+import logging
+
+console = Console(stderr=True)
+logging.captureWarnings(True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[RichHandler(console=console, show_path=False, show_time=False)],
+)
+logger = logging.getLogger(__name__)
 
 def setup_icon(root: tk.Tk):
     assets_dir = Path(__file__).parent / "assets"
@@ -21,6 +34,7 @@ def setup_icon(root: tk.Tk):
         root.iconphoto(True, tk.PhotoImage(file=str(assets_dir / "shroudstone.png")))
 
 def run():
+    logger.info("Keep this console open - it will show progress information during renaming.")
     cfg: config.Config = config.Config.load()
 
     root = TkWithJobs()
@@ -83,7 +97,7 @@ def first_time_setup(root: TkWithJobs, state: AppState, cfg: config.Config):
     dialog = tk.Toplevel()
     dialog.geometry("800x300")
     dialog.title("Shroudstone First-Time Setup")
-    text = ScrolledText(dialog, height=7)
+    text = tk.Text(dialog, height=7, font="TkDefaultFont")
     text.pack(side="top", fill="both", expand=True)
     append = partial(text.insert, "end")
     append(
@@ -97,6 +111,7 @@ def first_time_setup(root: TkWithJobs, state: AppState, cfg: config.Config):
         "3. click the characters next to the '#' icon to copy your player ID.\n"
         "4. paste it below and click continue :)"
     )
+    text.configure(state="disabled")
 
     def open_link(event):
         webbrowser.open("https://stormgateworld.com/leaderboards/ranked_1v1")

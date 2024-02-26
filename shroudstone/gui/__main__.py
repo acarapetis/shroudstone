@@ -1,2 +1,2 @@
-from . import app
+from shroudstone.gui import app
 app.run()
