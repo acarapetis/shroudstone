@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fstormgate.proto\x12\tstormgate\"\x13\n\x03Map\x12\x0c\n\x04name\x18\x02 \x01(\t\"e\n\x06Player\x12*\n\x04name\x18\x03 \x01(\x0b\x32\x1c.stormgate.Player.PlayerName\x1a/\n\nPlayerName\x12\x10\n\x08nickname\x18\x01 \x01(\t\x12\x0f\n\x07numbers\x18\x02 \x01(\t\"\xfe\x01\n\x0bReplayChunk\x12\x11\n\ttimestamp\x18\x01 \x01(\x05\x12-\n\x05inner\x18\x03 \x01(\x0b\x32\x1e.stormgate.ReplayChunk.Wrapper\x1a\xac\x01\n\x07Wrapper\x12=\n\x07\x63ontent\x18\x01 \x01(\x0b\x32,.stormgate.ReplayChunk.Wrapper.ReplayContent\x1a\x62\n\rReplayContent\x12\x1d\n\x03map\x18\x03 \x01(\x0b\x32\x0e.stormgate.MapH\x00\x12#\n\x06player\x18\x0c \x01(\x0b\x32\x11.stormgate.PlayerH\x00\x42\r\n\x0b\x63ontenttypeb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fstormgate.proto\x12\tstormgate\"\x13\n\x03Map\x12\x0c\n\x04name\x18\x02 \x01(\t\"$\n\x04UUID\x12\r\n\x05part1\x18\x01 \x01(\x03\x12\r\n\x05part2\x18\x02 \x01(\x03\"\x8a\x01\n\x06Player\x12\x1d\n\x04uuid\x18\x02 \x01(\x0b\x32\x0f.stormgate.UUID\x12*\n\x04name\x18\x03 \x01(\x0b\x32\x1c.stormgate.Player.PlayerName\x1a\x35\n\nPlayerName\x12\x10\n\x08nickname\x18\x01 \x01(\t\x12\x15\n\rdiscriminator\x18\x02 \x01(\t\"\xfe\x01\n\x0bReplayChunk\x12\x11\n\ttimestamp\x18\x01 \x01(\x05\x12-\n\x05inner\x18\x03 \x01(\x0b\x32\x1e.stormgate.ReplayChunk.Wrapper\x1a\xac\x01\n\x07Wrapper\x12=\n\x07\x63ontent\x18\x01 \x01(\x0b\x32,.stormgate.ReplayChunk.Wrapper.ReplayContent\x1a\x62\n\rReplayContent\x12\x1d\n\x03map\x18\x03 \x01(\x0b\x32\x0e.stormgate.MapH\x00\x12#\n\x06player\x18\x0c \x01(\x0b\x32\x11.stormgate.PlayerH\x00\x42\r\n\x0b\x63ontenttypeb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -23,14 +23,16 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
   _globals['_MAP']._serialized_start=30
   _globals['_MAP']._serialized_end=49
-  _globals['_PLAYER']._serialized_start=51
-  _globals['_PLAYER']._serialized_end=152
-  _globals['_PLAYER_PLAYERNAME']._serialized_start=105
-  _globals['_PLAYER_PLAYERNAME']._serialized_end=152
-  _globals['_REPLAYCHUNK']._serialized_start=155
-  _globals['_REPLAYCHUNK']._serialized_end=409
-  _globals['_REPLAYCHUNK_WRAPPER']._serialized_start=237
-  _globals['_REPLAYCHUNK_WRAPPER']._serialized_end=409
-  _globals['_REPLAYCHUNK_WRAPPER_REPLAYCONTENT']._serialized_start=311
-  _globals['_REPLAYCHUNK_WRAPPER_REPLAYCONTENT']._serialized_end=409
+  _globals['_UUID']._serialized_start=51
+  _globals['_UUID']._serialized_end=87
+  _globals['_PLAYER']._serialized_start=90
+  _globals['_PLAYER']._serialized_end=228
+  _globals['_PLAYER_PLAYERNAME']._serialized_start=175
+  _globals['_PLAYER_PLAYERNAME']._serialized_end=228
+  _globals['_REPLAYCHUNK']._serialized_start=231
+  _globals['_REPLAYCHUNK']._serialized_end=485
+  _globals['_REPLAYCHUNK_WRAPPER']._serialized_start=313
+  _globals['_REPLAYCHUNK_WRAPPER']._serialized_end=485
+  _globals['_REPLAYCHUNK_WRAPPER_REPLAYCONTENT']._serialized_start=387
+  _globals['_REPLAYCHUNK_WRAPPER_REPLAYCONTENT']._serialized_end=485
 # @@protoc_insertion_point(module_scope)

@@ -99,8 +99,8 @@ def rename_replays(
             )
         except NoMatch:
             info = get_match_info(r.path)
-            if len(info.player_nicknames) == 1:
-                nick = info.player_nicknames[0]
+            if len(info.players) == 1:
+                nick = info.players[0].nickname
                 logger.info(
                     f"No match found for {r.path.name}. Only one player was found ({nick})"
                     ", so this is probably a match vs AI."
@@ -177,7 +177,7 @@ def save_cached_matches(player_id: str, matches: pd.DataFrame):
     matches.to_csv(cache_file, index=True)
 
 
-def get_player_matches(player_id: str, reset_cache: bool = False):
+def get_player_matches(player_id: str):
     """Get the complete set of matches for the player of interest.
 
     We make the assumption that matches are only ever added going forward in
@@ -280,13 +280,14 @@ def find_match(matches: pd.DataFrame, replay: ReplayFile, check_nicknames: bool)
         n1 = match.get("us.player.nickname")
         n2 = match.get("them.player.nickname")
 
-        nickname_diff = {n1, n2}.symmetric_difference(info.player_nicknames)
+        replay_nicks = {p.nickname for p in info.players}
+        nickname_diff = {n1, n2}.symmetric_difference(replay_nicks)
 
         if not nickname_diff:
             return match
         else:
             ns1 = sorted([n1, n2])
-            ns2 = sorted(info.player_nicknames)
+            ns2 = sorted(replay_nicks)
             raise NicknameMismatch(ns1, ns2)
 
     raise NoMatch()

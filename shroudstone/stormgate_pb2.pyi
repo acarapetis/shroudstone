@@ -10,18 +10,28 @@ class Map(_message.Message):
     name: str
     def __init__(self, name: _Optional[str] = ...) -> None: ...
 
+class UUID(_message.Message):
+    __slots__ = ("part1", "part2")
+    PART1_FIELD_NUMBER: _ClassVar[int]
+    PART2_FIELD_NUMBER: _ClassVar[int]
+    part1: int
+    part2: int
+    def __init__(self, part1: _Optional[int] = ..., part2: _Optional[int] = ...) -> None: ...
+
 class Player(_message.Message):
-    __slots__ = ("name",)
+    __slots__ = ("uuid", "name")
     class PlayerName(_message.Message):
-        __slots__ = ("nickname", "numbers")
+        __slots__ = ("nickname", "discriminator")
         NICKNAME_FIELD_NUMBER: _ClassVar[int]
-        NUMBERS_FIELD_NUMBER: _ClassVar[int]
+        DISCRIMINATOR_FIELD_NUMBER: _ClassVar[int]
         nickname: str
-        numbers: str
-        def __init__(self, nickname: _Optional[str] = ..., numbers: _Optional[str] = ...) -> None: ...
+        discriminator: str
+        def __init__(self, nickname: _Optional[str] = ..., discriminator: _Optional[str] = ...) -> None: ...
+    UUID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    uuid: UUID
     name: Player.PlayerName
-    def __init__(self, name: _Optional[_Union[Player.PlayerName, _Mapping]] = ...) -> None: ...
+    def __init__(self, uuid: _Optional[_Union[UUID, _Mapping]] = ..., name: _Optional[_Union[Player.PlayerName, _Mapping]] = ...) -> None: ...
 
 class ReplayChunk(_message.Message):
     __slots__ = ("timestamp", "inner")

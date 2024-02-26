@@ -1,11 +1,14 @@
 """Stormgate replay parsing tools"""
-import gzip
-import struct
 from contextlib import contextmanager
+import gzip
 from pathlib import Path
-from pydantic import BaseModel
+import struct
 from typing import BinaryIO, Iterable, List, Optional, Union
-from .stormgate_pb2 import ReplayChunk
+from uuid import UUID
+
+from pydantic import BaseModel
+
+from . import stormgate_pb2 as pb
 
 
 @contextmanager
@@ -59,23 +62,37 @@ def split_replay(replay: Union[Path, BinaryIO]) -> Iterable[bytes]:
             yield f.read(length)
 
 
+class Player(BaseModel):
+    uuid: UUID
+    nickname: str
+    nickname_discriminator: str
+
+
 class MatchInfo(BaseModel):
     build_number: int
-    player_nicknames: List[str] = []
+    players: List[Player] = []
     map_name: Optional[str] = None
+
+
+def parse_player(player: pb.Player) -> Player:
+    return Player(
+        uuid=UUID(bytes=struct.pack(">qq", player.uuid.part1, player.uuid.part2)),
+        nickname=player.name.nickname,
+        nickname_discriminator=player.name.discriminator,
+    )
 
 
 def get_match_info(replay: Union[Path, BinaryIO]) -> MatchInfo:
     """Parse what we can from a stormgate replay."""
     info = MatchInfo(build_number=get_build_number(replay))
     for bytestring in split_replay(replay):
-        chunk = ReplayChunk.FromString(bytestring)
+        chunk = pb.ReplayChunk.FromString(bytestring)
         content = chunk.inner.content
         content_type = content.WhichOneof("contenttype")
         if content_type == "map":
             info.map_name = content.map.name
         if content_type == "player":
-            info.player_nicknames.append(content.player.name.nickname)
-        if len(info.player_nicknames) >= 2 and info.map_name is not None:
+            info.players.append(parse_player(content.player))
+        if len(info.players) >= 2 and info.map_name is not None:
             break
     return info

@@ -9,10 +9,20 @@ message Map {
     string name = 2;
 }
 
+// UUIDs are encoded as 2 varints.
+// To recover the original UUID, encode these as signed 64-bit big-endian
+// integers and concatenate the resulting bitstrings; or in python:
+// uuid.UUID(bytes=struct.pack(">qq", part1, part2))
+message UUID {
+    int64 part1 = 1;
+    int64 part2 = 2;
+}
+
 message Player {
+    UUID uuid = 2;
     message PlayerName {
         string nickname = 1;
-        string numbers = 2;
+        string discriminator = 2;
     }
     PlayerName name = 3;
 }
