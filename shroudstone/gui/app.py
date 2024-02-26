@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
+import platform
 import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import showinfo, showwarning
@@ -11,11 +12,19 @@ import webbrowser
 from shroudstone import cli, config, stormgateworld as sgw
 from .jobs import TkWithJobs
 
+def setup_icon(root: tk.Tk):
+    assets_dir = Path(__file__).parent / "assets"
+    if platform.system() == "Windows":
+        window_icon = assets_dir / "shroudstone.ico"
+        root.iconbitmap(str(window_icon))
+    else:
+        root.iconphoto(True, tk.PhotoImage(file=str(assets_dir / "shroudstone.png")))
 
 def run():
     cfg: config.Config = config.Config.load()
 
     root = TkWithJobs()
+    setup_icon(root)
     state = AppState()
     setup_style()
 
