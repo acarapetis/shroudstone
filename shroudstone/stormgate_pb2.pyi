@@ -24,7 +24,7 @@ class Player(_message.Message):
     def __init__(self, name: _Optional[_Union[Player.PlayerName, _Mapping]] = ...) -> None: ...
 
 class ReplayChunk(_message.Message):
-    __slots__ = ("inner",)
+    __slots__ = ("timestamp", "inner")
     class Wrapper(_message.Message):
         __slots__ = ("content",)
         class ReplayContent(_message.Message):
@@ -37,6 +37,8 @@ class ReplayChunk(_message.Message):
         CONTENT_FIELD_NUMBER: _ClassVar[int]
         content: ReplayChunk.Wrapper.ReplayContent
         def __init__(self, content: _Optional[_Union[ReplayChunk.Wrapper.ReplayContent, _Mapping]] = ...) -> None: ...
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     INNER_FIELD_NUMBER: _ClassVar[int]
+    timestamp: int
     inner: ReplayChunk.Wrapper
-    def __init__(self, inner: _Optional[_Union[ReplayChunk.Wrapper, _Mapping]] = ...) -> None: ...
+    def __init__(self, timestamp: _Optional[int] = ..., inner: _Optional[_Union[ReplayChunk.Wrapper, _Mapping]] = ...) -> None: ...
