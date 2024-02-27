@@ -1,15 +1,22 @@
 import json
+import logging
 from typing import Optional
-from urllib.request import urlopen, Request
+from urllib.request import Request, urlopen
+
 from shroudstone import __version__
+
+logger = logging.getLogger(__name__)
 
 STORMGATEWORLD = "https://api.stormgateworld.com"
 USER_AGENT = f"shroudstone v{__version__}"
 """User-Agent to use in requests to the API"""
 
+
 def api_request(endpoint: str, **kwargs):
+    url = f"{STORMGATEWORLD}{endpoint}"
+    logger.debug(f"Making SGW API request: {url}")
     request = Request(
-        f"{STORMGATEWORLD}{endpoint}",
+        url,
         headers={"User-Agent": USER_AGENT},
         **kwargs,
     )
