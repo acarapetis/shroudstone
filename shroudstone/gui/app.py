@@ -15,14 +15,6 @@ from shroudstone import cli, config, stormgateworld as sgw
 from .jobs import TkWithJobs
 
 import logging
-
-console = Console(stderr=True)
-logging.captureWarnings(True)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-    handlers=[RichHandler(console=console, show_path=False, show_time=False)],
-)
 logger = logging.getLogger(__name__)
 
 def setup_icon(root: tk.Tk):

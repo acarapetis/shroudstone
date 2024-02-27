@@ -21,15 +21,7 @@ from shroudstone.config import Config, config_file, DEFAULT_FORMAT
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich", help=sys.modules[__name__].__doc__)
 
-console = Console(stderr=True)
-logging.captureWarnings(True)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-    handlers=[RichHandler(console=console, show_path=False, show_time=False)],
-)
 logger = logging.getLogger(__name__)
-
 
 def version(value: bool):
     if value:
@@ -48,8 +40,17 @@ def callback(
             callback=version,
         ),
     ] = False,
+    debug: bool = False,
 ):
-    pass
+    level = logging.DEBUG if debug else logging.INFO
+    console = Console(stderr=True)
+    logging.captureWarnings(True)
+    logging.basicConfig(
+        level=level,
+        format="%(message)s",
+        handlers=[RichHandler(console=console, show_path=False, show_time=False)],
+    )
+
 
 
 @app.command(rich_help_panel="Tools for nerds")
