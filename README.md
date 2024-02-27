@@ -22,32 +22,44 @@ World](https://www.stormgateworld.com/) team!
 
 ## Installation & Usage
 
-### On Windows
+### On Windows: .exe download
+
+Simply [download the latest standalone executable](https://github.com/acarapetis/shroudstone/releases/latest/download/shroudstone.exe)
+and double-click it to launch the user interface.
+
+### On Windows: Using pip
 
 1. Install Python 3.11 using
    [the Microsoft Store](https://apps.microsoft.com/detail/9nrwmjp3717k) or the
    [official installer](https://www.python.org/downloads/). If using the
    official installer, make sure to check the "add python.exe to PATH" option.
 2. Open Command Prompt and type `pip install shroudstone` to install shroudstone.
-3. You can now invoke `python -m shroudstone rename-replays` from the command
-   line to rename your replays. To avoid having to do this every time, `python
-   -m shroudstone create-rename-replays-shortcut` will create an icon on your
-   desktop so it's just a double-click away :)
+3. You can now invoke `python -m shroudstone gui` from the command line to
+   launch the user interface, or `python -m shroudstone --help` for usage
+   instructions for the command-line interface.
 
 You should also be able to get it working using a non-UWP python install, or
 using WSL - just `pip install shroudstone` and you should be good to go.
 
-### On Linux
+### On Linux: using pip
 
-If you're running Stormgate on Linux+Steam+Proton, hopefully this should also
-work for you - just `pip install shroudstone` and give it a shot.
+If you're running Stormgate on Linux+Steam+Proton, this should also work for
+you!
 
+1. Ensure python 3.8+ and pip are installed using your system package manager.
+   (e.g. on Ubuntu, run `sudo apt install python3-pip`.)
+2. Run `pip install shroudstone` in a terminal.
+3. Launch the GUI with `shroudstone gui`, or check out `shroudstone --help` if
+   you want to use the CLI.
 
 ### Updating
 
 Regardless of your operating system, if you installed using `pip install
 shroudstone` originally, you can update to the newest version with a simple
 `pip install --upgrade shroudstone`.
+
+
+If you downloaded the .exe, just download a new one to replace it!
 
 
 ## Notes
@@ -61,18 +73,19 @@ shroudstone` originally, you can update to the newest version with a simple
   using Python from the Microsoft Store, this %LOCALAPPDATA% might not be
   what you expect - use `python -m shroudstone config-path` to find out exactly
   where it is.
-- Your player ID, replay directory path and replay format string can be
-  configured by passing command-line options to `python -m shroudstone
-  rename-replays`; but you probably want to use the config file instead so you
-  don't have to provide them every time. Use `python -m shroudstone
-  edit-config` to edit the configuration file.
+- If using the CLI, Your player ID, replay directory path and replay format
+  string can be configured by passing command-line options to `python -m
+  shroudstone rename-replays`; but you probably want to use the config file
+  instead so you don't have to provide them every time. Use `python -m
+  shroudstone edit-config` to edit the configuration file.
 
 
 ## Customizing replay names
 
 You can customize the filenames of your renamed replays by editing the format
 string in your config file. (Use `python -m shroudstone edit-config` to open
-the config file in a text editor.)
+the config file in a text editor, or click the "Edit Config File" button in the
+GUI.)
 
 The default format string is
 
