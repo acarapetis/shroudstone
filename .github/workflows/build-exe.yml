@@ -1,0 +1,20 @@
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: "windows-latest"
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+      with:
+        python-version: 3.11
+
+    - run: pip install -e .
+    - run: pip install pyinstaller
+    - run: ./pyinstaller_build.bat
+    # Optionally verify that it works (provided that it does not need user interaction)
+    - uses: actions/upload-artifact@v2
+      with:
+        path: dist/*
