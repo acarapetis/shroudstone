@@ -84,8 +84,14 @@ def config_path():
 @app.command(rich_help_panel="Tools for nerds")
 def edit_config(xdg_open: bool = False):
     """Open the shroudstone configuration file in your default text editor."""
+    from shroudstone import renamer
     if not config_file.exists():
-        Config().save()
+        logger.info("No config file found, doing our best to auto-generate one.")
+        cfg = Config()
+        # Prefill this path if possible:
+        cfg.replay_dir = renamer.guess_replay_dir()
+        cfg.save()
+
     realpath = config_file.resolve()
     if platform.system() == "Windows":
         # .resolve() is crucial when python is installed from the microsoft store
