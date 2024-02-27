@@ -320,6 +320,10 @@ def rename_replay(replay: ReplayFile, match: pd.Series, dry_run: bool, format: s
 
 
 def do_rename(source: Path, target: Path, dry_run: bool):
+    if source == target:
+        logger.debug(f"{source} already has the desired format, doing nothing :)")
+        return
+
     if target.exists():
         logger.error(f"Not renaming {source}! {target} already exists!")
         return

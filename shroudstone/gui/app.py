@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+import dataclasses
 from functools import partial
 from pathlib import Path
 import platform
@@ -22,12 +22,24 @@ class StringVar(tk.StringVar):
         self.trace_add("write", func)
 
 
-@dataclass
+class BoolVar(tk.BooleanVar):
+    def on_change(self, func):
+        self.trace_add("write", func)
+
+
+def field(factory, **kw):
+    return dataclasses.field(default_factory=partial(factory, **kw))
+
+
+@dataclasses.dataclass
 class AppState:
-    player_id: StringVar = field(default_factory=StringVar)
-    player_id_state: StringVar = field(default_factory=StringVar)
-    nickname_text: StringVar = field(default_factory=StringVar)
-    replay_dir: StringVar = field(default_factory=StringVar)
+    player_id: StringVar = field(StringVar)
+    player_id_state: StringVar = field(StringVar)
+    nickname_text: StringVar = field(StringVar)
+    replay_dir: StringVar = field(StringVar)
+    reprocess: BoolVar = field(BoolVar)
+    dry_run: BoolVar = field(BoolVar)
+    check_nicknames: BoolVar = field(BoolVar, value=True)
 
 
 def run():
@@ -189,29 +201,30 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     # heading.pack(fill="x")
 
     form = ttk.Frame(root)
-    form.pack(fill="x")
+    form.pack(fill="x", padx=5, pady=5)
 
     form.columnconfigure(0, weight=0)
     form.columnconfigure(1, weight=1)
     form.columnconfigure(2, weight=0)
 
+    pad = {"padx": 2, "pady": 2}
     ttk.Label(form, text="Your Stormgate World Player ID", justify="right").grid(
-        row=0, column=0, sticky="E"
+        row=0, column=0, sticky="E", **pad,
     )
     player_cell = ttk.Frame(form)
     player_cell.grid(row=0, column=1, sticky="W")
     player_id_entry = ttk.Entry(
         player_cell, width=6, font="TkFixedFont", textvariable=state.player_id
     )
-    player_id_entry.pack(side="left", fill="y")
+    player_id_entry.pack(side="left", fill="y", **pad)
     nickname_label = tk.Label(player_cell, textvariable=state.nickname_text)
-    nickname_label.pack(side="left", fill="y")
+    nickname_label.pack(side="left", fill="y", **pad)
 
     ttk.Label(form, text="Stormgate Replay Directory", justify="right").grid(
-        row=1, column=0, sticky="E"
+        row=1, column=0, sticky="E", **pad
     )
     replay_dir_entry = ttk.Entry(form, width=50, textvariable=state.replay_dir)
-    replay_dir_entry.grid(row=1, column=1, sticky="WE")
+    replay_dir_entry.grid(row=1, column=1, sticky="WE", **pad)
 
     def guess_replay_dir():
         rd = renamer.guess_replay_dir()
@@ -235,7 +248,23 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
                 state="normal",
             )
 
-        root.jobs.submit(cli.rename_replays, callback)
+        root.jobs.submit(
+            cli.rename_replays,
+            callback,
+            reprocess=state.reprocess.get(),
+            dry_run=state.dry_run.get(),
+            check_nicknames=state.check_nicknames.get(),
+        )
+
+    options_frame = ttk.LabelFrame(root, text="Options")
+    options_frame.pack(fill="x", padx=5, pady=5)
+
+    reprocess_cb = tk.Checkbutton(options_frame, variable=state.reprocess, text="Reprocess replays that have already been renamed")
+    reprocess_cb.pack(anchor="w")
+    check_nicknames_cb = tk.Checkbutton(options_frame, variable=state.check_nicknames, text="Check nicknames from Stormgate World match those encoded in replays")
+    check_nicknames_cb.pack(anchor="w")
+    dry_run_cb = tk.Checkbutton(options_frame, variable=state.dry_run, text="Dry run - don't actually rename file, just show output")
+    dry_run_cb.pack(anchor="w")
 
     rename_button = ttk.Button(
         root,
