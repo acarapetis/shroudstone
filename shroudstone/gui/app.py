@@ -8,10 +8,7 @@ from tkinter.messagebox import showinfo, showwarning
 from tkinter.font import Font, families, nametofont
 import webbrowser
 
-from rich.console import Console
-from rich.logging import RichHandler
-
-from shroudstone import cli, config, stormgateworld as sgw
+from shroudstone import cli, config, renamer, stormgateworld as sgw
 from .jobs import TkWithJobs
 
 import logging
@@ -132,7 +129,7 @@ def first_time_setup(root: TkWithJobs, state: AppState, cfg: config.Config):
     def submit():
         cfg.my_player_id = state.player_id.get()
         dialog.withdraw()
-        cfg.replay_dir = cli.guess_replay_dir()
+        cfg.replay_dir = renamer.guess_replay_dir()
         if cfg.replay_dir is None:
             state.replay_dir.set("")
             showwarning(
@@ -199,7 +196,7 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     replay_dir_entry.grid(row=1, column=1, sticky="WE")
 
     def guess_replay_dir():
-        rd = cli.guess_replay_dir()
+        rd = renamer.guess_replay_dir()
         if rd is not None:
             state.replay_dir.set(str(rd))
 

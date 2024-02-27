@@ -213,36 +213,8 @@ def get_player_id(config: Config) -> str:
     return config.my_player_id
 
 
-def guess_replay_dir() -> Optional[Path]:
-    if platform.system() == "Windows":
-        # Should be easy, just look in the current user's local app data
-        appdata = os.environ["LOCALAPPDATA"]
-        paths = [Path(appdata) / "Stormgate" / "Saved" / "Replays"]
-    else:
-        # If this script is running on Linux and Stormgate is installed using
-        # Steam+Proton, look in the steam compatdata:
-        steammnt = (
-            Path("~").expanduser()
-            / ".steam/root/steamapps/compatdata/2012510/pfx/dosdevices"
-        )
-
-        # If this script is running on the Windows Subsystem for Linux, we can
-        # find the Windows drives mounted in /mnt:
-        wslmnt = Path("/mnt")
-
-        tail = "AppData/Local/Stormgate/Saved/Replays"
-        paths = [
-            *steammnt.glob(f"*/users/steamuser/{tail}"),
-            *wslmnt.glob(f"*/Users/*/{tail}"),
-            *wslmnt.glob(f"*/Documents and Settings/*/{tail}"),
-        ]
-
-    for path in paths:
-        if path.is_dir():
-            return path
-
-
 def get_replay_dir(config: Config) -> Path:
+    from shroudstone.renamer import guess_replay_dir
     if config.replay_dir is None:
         config.replay_dir = guess_replay_dir()
         if config.replay_dir is None:
