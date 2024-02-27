@@ -1,6 +1,7 @@
 """Persistent configuration stored in standard user data directories"""
 import os
 import platform
+import yaml
 from pathlib import Path
 from typing import Optional
 
@@ -19,7 +20,7 @@ def _platform_data_dir() -> Path:
 
 data_dir = _platform_data_dir() / "shroudstone"
 data_dir.mkdir(parents=True, exist_ok=True)
-config_file = data_dir / "config.json"
+config_file = data_dir / "config.yaml"
 
 DEFAULT_FORMAT = "{time:%Y-%m-%d %H.%M} {result:.1} {duration} {us} {r1:.1}v{r2:.1} {them} - {map_name}.SGReplay"
 """Default format string for new replay filenames"""
@@ -32,9 +33,12 @@ class Config(BaseModel):
     @staticmethod
     def load():
         if config_file.exists():
-            return Config.model_validate_json(config_file.read_text())
+            with config_file.open("rt") as f:
+                content = yaml.load(f, Loader=yaml.SafeLoader)
+                return Config.model_validate(content)
         else:
             return Config()
 
     def save(self):
-        config_file.write_text(self.model_dump_json(indent=2))
+        with config_file.open("wt") as f:
+            yaml.dump(self.model_dump(mode="json"), f, width=float("inf"))
