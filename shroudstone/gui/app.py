@@ -9,6 +9,7 @@ from tkinter.font import Font, families, nametofont
 import webbrowser
 
 from shroudstone import cli, config, renamer, stormgateworld as sgw
+from shroudstone.logging import configure_logging
 from .jobs import TkWithJobs
 
 import logging
@@ -30,6 +31,7 @@ class AppState:
 
 
 def run():
+    configure_logging()
     logger.info(
         "Keep this console open - it will show progress information during renaming."
     )

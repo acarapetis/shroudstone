@@ -12,12 +12,11 @@ import sys
 from typing import Optional
 from typing_extensions import Annotated
 
-from rich.console import Console
-from rich.logging import RichHandler
 import typer
 
 from shroudstone import __version__
 from shroudstone.config import Config, config_file, DEFAULT_FORMAT
+from shroudstone.logging import configure_logging
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich", help=sys.modules[__name__].__doc__)
 
@@ -42,15 +41,7 @@ def callback(
     ] = False,
     debug: bool = False,
 ):
-    level = logging.DEBUG if debug else logging.INFO
-    console = Console(stderr=True)
-    logging.captureWarnings(True)
-    logging.basicConfig(
-        level=level,
-        format="%(message)s",
-        handlers=[RichHandler(console=console, show_path=False, show_time=False)],
-    )
-
+    configure_logging(debug=debug)
 
 
 @app.command(rich_help_panel="Tools for nerds")
