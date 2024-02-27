@@ -37,11 +37,18 @@ def run():
         state.player_id_state.set("loading")
         state.nickname_text.set("Checking...")
 
-        def callback(nn):
-            state.player_id_state.set("valid" if nn else "invalid")
-            state.nickname_text.set(nn or "Not Found")
+        def job(pid):
+            nickname = sgw.get_nickname(pid)
+            return pid, nickname
 
-        root.jobs.submit(sgw.get_nickname, callback, value)
+        def callback(tup):
+            pid, nn = tup
+            if state.player_id.get() == pid:
+                # Only use the result if it's fresh
+                state.player_id_state.set("valid" if nn else "invalid")
+                state.nickname_text.set(nn or "Not Found")
+
+        root.jobs.submit(job, callback, value)
 
     do_setup = cfg.replay_dir is None or cfg.my_player_id is None
     if do_setup:
