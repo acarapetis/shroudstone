@@ -33,4 +33,4 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       with:
         files: dist/shroudstone.exe
-        prerelease: contains(github.ref, 'a') # flag alpha releases as pre-release
+        prerelease: ${{ contains(github.ref, 'a') }} # flag alpha releases as pre-release
