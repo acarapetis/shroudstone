@@ -1,20 +1,28 @@
 on:
   push:
+    tags:
+      - "v*" # A version tag = a release
 
 jobs:
   build:
     runs-on: "windows-latest"
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: 3.11
-
-    - run: pip install -e .
-    - run: pip install pyinstaller
-    - run: ./pyinstaller_build.bat
-    # Optionally verify that it works (provided that it does not need user interaction)
-    - uses: actions/upload-artifact@v2
+    - name: Cache pyinstaller build directory
+      uses: actions/cache@v3
       with:
-        path: dist/*
+        path: |
+          ./build
+    - run: pip install pyinstaller -e .
+    - run: ./pyinstaller_build.bat
+    - run: ./dist/shroudstone.exe --help
+    - name: Create release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        files: dist/shroudstone.exe
+        prerelease: contains(github.ref, 'a') # flag alpha releases as pre-release
