@@ -1,8 +1,8 @@
 """Rename stormgate replays to include useful info in filename"""
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-import json
 import os
+import string
 from pathlib import Path
 import platform
 import re
@@ -28,6 +28,18 @@ BAD_CHARS = re.compile(r'[<>:"/\\|?*\0]')
 
 cache_dir = data_dir / "stormgateworld-cache"
 """Directory in which match data is cached"""
+
+FIELDS = [
+    "us",
+    "them",
+    "r1",
+    "r2",
+    "time",
+    "duration",
+    "result",
+    "map_name",
+    "build_number",
+]
 
 
 def rename_replays(
@@ -379,3 +391,10 @@ def guess_replay_dir() -> Optional[Path]:
     for path in paths:
         if path.is_dir():
             return path
+
+
+def validate_format_string(format: str):
+    parts = string.Formatter().parse(format)
+    for _, field_name, _, _ in parts:
+        if field_name is not None and field_name not in FIELDS:
+            raise ValueError(f"Unknown replay field {field_name}")

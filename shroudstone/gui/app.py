@@ -4,11 +4,12 @@ from pathlib import Path
 import platform
 import tkinter as tk
 from tkinter import ttk
+from tkinter.filedialog import askdirectory
 from tkinter.messagebox import showinfo, showwarning
 from tkinter.font import Font, families, nametofont
 import webbrowser
 
-from shroudstone import cli, config, renamer, stormgateworld as sgw
+from shroudstone import config, renamer, stormgateworld as sgw
 from shroudstone.logging import configure_logging
 from .jobs import TkWithJobs
 
@@ -37,6 +38,7 @@ class AppState:
     player_id_state: StringVar = field(StringVar)
     nickname_text: StringVar = field(StringVar)
     replay_dir: StringVar = field(StringVar)
+    replay_name_format: StringVar = field(StringVar)
     reprocess: BoolVar = field(BoolVar)
     dry_run: BoolVar = field(BoolVar)
     check_nicknames: BoolVar = field(BoolVar, value=True)
@@ -191,6 +193,7 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
         cfg = config.Config.load()
         state.player_id.set(cfg.my_player_id or "")
         state.replay_dir.set(str(cfg.replay_dir or ""))
+        state.replay_name_format.set(cfg.replay_name_format)
 
     root.title("Shroudstone - Stormgate Replay Renamer")
 
@@ -200,41 +203,115 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     # )
     # heading.pack(fill="x")
 
-    form = ttk.Frame(root)
-    form.pack(fill="x", padx=5, pady=5)
+    config_frame = ttk.LabelFrame(root, text="Configuration")
+    config_frame.pack(fill="x", padx=5, pady=5)
+
+    form = ttk.Frame(config_frame)
+    form.pack(fill="x")
 
     form.columnconfigure(0, weight=0)
     form.columnconfigure(1, weight=1)
-    form.columnconfigure(2, weight=0)
 
-    pad = {"padx": 2, "pady": 2}
-    ttk.Label(form, text="Your Stormgate World Player ID", justify="right").grid(
-        row=0, column=0, sticky="E", **pad,
+    ttk.Label(form, text="Your Player ID", justify="right").grid(
+        row=0,
+        column=0,
+        sticky="E",
+        padx=2,
+        pady=2,
     )
     player_cell = ttk.Frame(form)
     player_cell.grid(row=0, column=1, sticky="W")
     player_id_entry = ttk.Entry(
         player_cell, width=6, font="TkFixedFont", textvariable=state.player_id
     )
-    player_id_entry.pack(side="left", fill="y", **pad)
+    player_id_entry.pack(side="left", fill="y", ipadx=2, ipady=2)
     nickname_label = tk.Label(player_cell, textvariable=state.nickname_text)
-    nickname_label.pack(side="left", fill="y", **pad)
+    nickname_label.pack(side="left", fill="y", ipadx=2, ipady=2)
 
-    ttk.Label(form, text="Stormgate Replay Directory", justify="right").grid(
-        row=1, column=0, sticky="E", **pad
+    ttk.Label(form, text="Replay Directory", justify="right").grid(
+        row=1, column=0, sticky="E", padx=2, pady=2
     )
-    replay_dir_entry = ttk.Entry(form, width=50, textvariable=state.replay_dir)
-    replay_dir_entry.grid(row=1, column=1, sticky="WE", **pad)
+    replay_dir_row = ttk.Frame(form)
+    replay_dir_row.grid(row=1, column=1, sticky="NSEW")
+    replay_dir_entry = ttk.Entry(
+        replay_dir_row, width=50, textvariable=state.replay_dir
+    )
+    replay_dir_entry.pack(side="left", fill="both", ipadx=2, ipady=2, expand=True)
+
+    replay_dir_error = ttk.Label(form)
+    replay_dir_error.grid(row=2, column=1, sticky="WE", ipadx=5, ipady=5)
+
+    def browse_replay_dir():
+        current = Path(state.replay_dir.get())
+        initial = current if current.exists() else None
+        new = askdirectory(title="Stormgate Replay Directory", initialdir=initial, mustexist=True)
+        state.replay_dir.set(new)
 
     def guess_replay_dir():
         rd = renamer.guess_replay_dir()
         if rd is not None:
             state.replay_dir.set(str(rd))
 
-    guess_replay_dir_button = ttk.Button(
-        form, text="Autodetect", command=guess_replay_dir
+    ttk.Button(replay_dir_row, text="Browse", command=browse_replay_dir).pack(
+        side="left", fill="y", padx=2, ipadx=2, ipady=2
     )
-    guess_replay_dir_button.grid(row=1, column=2)
+
+    ttk.Button(replay_dir_row, text="Autodetect", command=guess_replay_dir).pack(
+        side="left", fill="y", padx=2, ipadx=2, ipady=2
+    )
+
+    @state.replay_dir.on_change
+    def validate_replay_dir(*args):
+        path = Path(state.replay_dir.get())
+        if path.is_dir():
+            replay_dir_error.configure(text="Looks good!", background="#66ff66")
+            cfg.replay_dir = path
+            save_config.configure(state="normal")
+            rename_button.configure(state="normal")
+        else:
+            replay_dir_error.configure(
+                text="Directory does not exist!", background="#ff6666"
+            )
+            save_config.configure(state="disabled")
+            rename_button.configure(state="disabled")
+
+    @state.replay_name_format.on_change
+    def validate_format(*args):
+        fstr = state.replay_name_format.get()
+        try:
+            renamer.validate_format_string(fstr)
+        except ValueError as e:
+            format_error.configure(text=f"Error: {e}", background="#ff6666")
+            save_config.configure(state="disabled")
+            rename_button.configure(state="disabled")
+        else:
+            format_error.configure(text="Looks good!", background="#66ff66")
+            cfg.replay_name_format = fstr
+            save_config.configure(state="normal")
+            rename_button.configure(state="normal")
+
+    ttk.Label(form, text="Desired Name Format", justify="right").grid(
+        row=3, column=0, sticky="E", padx=2, pady=2
+    )
+    format_entry = ttk.Entry(
+        form,
+        width=100,
+        textvariable=state.replay_name_format,
+    )
+    format_entry.grid(row=3, column=1, sticky="WE", ipadx=2, ipady=2)
+    format_error = ttk.Label(form)
+    format_error.grid(row=4, column=1, sticky="WE", ipadx=5, ipady=5)
+
+    config_buttons = ttk.Frame(config_frame)
+    config_buttons.pack(fill="x")
+
+    save_config = ttk.Button(config_buttons, text="Save Config", command=cfg.save)
+    save_config.pack(side="right", fill="both", padx=3, pady=3)
+
+    load_config = ttk.Button(
+        config_buttons, text="Reload Config", command=reload_config
+    )
+    load_config.pack(side="right", fill="both", padx=3, pady=3)
 
     def rename_replays():
         rename_button.config(
@@ -248,9 +325,16 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
                 state="normal",
             )
 
+        cfg.replay_dir = Path(state.replay_dir.get())
+        cfg.replay_name_format = state.replay_name_format.get()
+        cfg.my_player_id = state.player_id.get()
+
         root.jobs.submit(
-            cli.rename_replays,
+            renamer.rename_replays,
             callback,
+            replay_dir=cfg.replay_dir,
+            format=cfg.replay_name_format,
+            my_player_id=cfg.my_player_id,
             reprocess=state.reprocess.get(),
             dry_run=state.dry_run.get(),
             check_nicknames=state.check_nicknames.get(),
@@ -259,11 +343,23 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     options_frame = ttk.LabelFrame(root, text="Options")
     options_frame.pack(fill="x", padx=5, pady=5)
 
-    reprocess_cb = tk.Checkbutton(options_frame, variable=state.reprocess, text="Reprocess replays that have already been renamed")
+    reprocess_cb = tk.Checkbutton(
+        options_frame,
+        variable=state.reprocess,
+        text="Reprocess replays that have already been renamed",
+    )
     reprocess_cb.pack(anchor="w")
-    check_nicknames_cb = tk.Checkbutton(options_frame, variable=state.check_nicknames, text="Check nicknames from Stormgate World match those encoded in replays")
+    check_nicknames_cb = tk.Checkbutton(
+        options_frame,
+        variable=state.check_nicknames,
+        text="Check nicknames from Stormgate World match those encoded in replays",
+    )
     check_nicknames_cb.pack(anchor="w")
-    dry_run_cb = tk.Checkbutton(options_frame, variable=state.dry_run, text="Dry run - don't actually rename file, just show output")
+    dry_run_cb = tk.Checkbutton(
+        options_frame,
+        variable=state.dry_run,
+        text="Dry run - don't actually rename file, just show output",
+    )
     dry_run_cb.pack(anchor="w")
 
     rename_button = ttk.Button(
@@ -273,19 +369,6 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     )
 
     rename_button.pack(fill="x")
-
-    save_config = ttk.Button(root, text="Save Config", command=cfg.save)
-    save_config.pack(fill="x")
-
-    load_config = ttk.Button(root, text="Reload Config", command=reload_config)
-    load_config.pack(fill="x")
-
-    edit_config = ttk.Button(
-        root,
-        text="Edit Config File (Advanced Users)",
-        command=partial(cli.edit_config, xdg_open=True),
-    )
-    edit_config.pack(fill="x")
 
     @state.nickname_text.on_change
     def _(*_):
@@ -303,5 +386,4 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
         cfg.replay_dir = Path(state.replay_dir.get())
 
     reload_config()
-
     root.mainloop()
