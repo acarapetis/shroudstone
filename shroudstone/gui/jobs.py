@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import tkinter as tk
+from dataclasses import dataclass
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Callable, List, NamedTuple
+from typing import Any, Callable, List
 from typing_extensions import Generic, ParamSpec, TypeVar
 
 
@@ -40,7 +41,8 @@ T = TypeVar("T")
 P = ParamSpec("P")
 
 
-class FutureContinuation(NamedTuple, Generic[T]):
+@dataclass(frozen=True)
+class FutureContinuation(Generic[T]):
     """A future (representing a job running in a thread pool) along with a
     callback that will be executed in the main thread when the future
     completes. The callback should be passed a single argument: the result
