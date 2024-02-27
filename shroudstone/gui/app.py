@@ -12,53 +12,8 @@ from shroudstone import cli, config, renamer, stormgateworld as sgw
 from .jobs import TkWithJobs
 
 import logging
+
 logger = logging.getLogger(__name__)
-
-def setup_icon(root: tk.Tk):
-    assets_dir = Path(__file__).parent / "assets"
-    if platform.system() == "Windows":
-        window_icon = assets_dir / "shroudstone.ico"
-        root.iconbitmap(str(window_icon))
-    else:
-        root.iconphoto(True, tk.PhotoImage(file=str(assets_dir / "shroudstone.png")))
-
-def run():
-    logger.info("Keep this console open - it will show progress information during renaming.")
-    cfg: config.Config = config.Config.load()
-
-    root = TkWithJobs()
-    setup_icon(root)
-    state = AppState()
-    setup_style()
-
-    @state.player_id.on_change
-    def _(*args):
-        value = state.player_id.get()
-        state.player_id_state.set("loading")
-        state.nickname_text.set("Checking...")
-
-        def job(pid):
-            nickname = sgw.get_nickname(pid)
-            return pid, nickname
-
-        def callback(tup):
-            pid, nn = tup
-            if state.player_id.get() == pid:
-                # Only use the result if it's fresh
-                state.player_id_state.set("valid" if nn else "invalid")
-                state.nickname_text.set(nn or "Not Found")
-
-        root.jobs.submit(job, callback, value)
-
-    do_setup = cfg.replay_dir is None or cfg.my_player_id is None
-    if do_setup:
-        root.withdraw()  # Hide the main window to begin with
-        first_time_setup(root, state, cfg)
-    else:
-        state.player_id.set(cfg.my_player_id or "")
-
-    main_ui(root, state, cfg)
-    root.mainloop()
 
 
 class StringVar(tk.StringVar):
@@ -74,6 +29,49 @@ class AppState:
     replay_dir: StringVar = field(default_factory=StringVar)
 
 
+def run():
+    logger.info(
+        "Keep this console open - it will show progress information during renaming."
+    )
+    cfg: config.Config = config.Config.load()
+
+    root = TkWithJobs()
+    setup_icon(root)
+    state = AppState()
+    setup_style()
+
+    @state.player_id.on_change
+    @root.debounce()
+    def check_player_id():
+        """Use Stormgate World API to fetch the nickname associated with a player_id."""
+        value = state.player_id.get()
+        state.player_id_state.set("loading")
+        state.nickname_text.set("Checking...")
+
+        def job(pid):
+            nickname = sgw.get_nickname(pid)
+            return pid, nickname
+
+        def callback(tup):
+            pid, nickname = tup
+            # Only use the result if it's fresh:
+            if state.player_id.get() == pid:
+                state.player_id_state.set("valid" if nickname else "invalid")
+                state.nickname_text.set(nickname or "Not Found")
+
+        root.jobs.submit(job, callback, value)
+
+    do_setup = cfg.replay_dir is None or cfg.my_player_id is None
+    if do_setup:
+        root.withdraw()  # Hide the main window to begin with
+        first_time_setup(root, state, cfg)
+    else:
+        state.player_id.set(cfg.my_player_id or "")
+
+    main_ui(root, state, cfg)
+    root.mainloop()
+
+
 def first_available_font(*names) -> str:
     fonts = families()
     for name in names:
@@ -87,6 +85,17 @@ def setup_style():
         "Ubuntu", "DejaVu Sans", "Sans", "Segoe UI", "Helvetica"
     )
     nametofont("TkDefaultFont").configure(family=sans)
+
+
+def setup_icon(root: tk.Tk):
+    assets_dir = Path(__file__).parent / "assets"
+    if platform.system() == "Windows":
+        # TODO: This .ico currently only has a 64x64px image in it, which looks
+        # garbage when resized down to fit in window titlebars etc.
+        window_icon = assets_dir / "shroudstone.ico"
+        root.iconbitmap(str(window_icon))
+    else:
+        root.iconphoto(True, tk.PhotoImage(file=str(assets_dir / "shroudstone.png")))
 
 
 def first_time_setup(root: TkWithJobs, state: AppState, cfg: config.Config):
