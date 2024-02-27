@@ -99,6 +99,11 @@ def edit_config(xdg_open: bool = False):
 
 
 @app.command(rich_help_panel="Replay renaming")
+def gui():
+    from shroudstone.gui import app
+    app.run()
+
+@app.command(rich_help_panel="Replay renaming")
 def create_rename_replays_shortcut():
     """Create a desktop icon to launch the rename-replays script."""
     if platform.system() != "Windows":
