@@ -16,7 +16,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 import typer
 
-from shroudstone import renamer, replay, __version__
+from shroudstone import __version__
 from shroudstone.config import Config, config_file, DEFAULT_FORMAT
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich", help=sys.modules[__name__].__doc__)
@@ -55,15 +55,17 @@ def callback(
 @app.command(rich_help_panel="Tools for nerds")
 def get_replay_info(replay_file: typer.FileBinaryRead):
     """Extract information from a replay, outputting it in JSON format."""
-    typer.echo(replay.get_match_info(replay_file).model_dump_json(indent=2))
+    from shroudstone.replay import get_match_info
+    typer.echo(get_match_info(replay_file).model_dump_json(indent=2))
 
 
 @app.command(rich_help_panel="Tools for nerds")
 def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
     """Extract a stormgate replay into a directory containing individual protoscope messages."""
+    from shroudstone.replay import split_replay
     output_directory.mkdir(exist_ok=True, parents=True)
     i = 0
-    for i, chunk in enumerate(replay.split_replay(replay_file)):
+    for i, chunk in enumerate(split_replay(replay_file)):
         (output_directory / f"{i:07d}.binpb").write_bytes(chunk)
     typer.echo(
         f"Wrote {i+1} replay messages in protoscope wire format to {output_directory}/."
@@ -172,6 +174,7 @@ def rename_replays(
     * map_name (str): Name of the map on which the game was played (extracted from replay file)
     * build_number (int): Build number of Stormgate version on which the game was played (extracted from replay file)
     """
+    from shroudstone import renamer
     config = Config.load()
     if replay_dir is None:
         replay_dir = get_replay_dir(config)
