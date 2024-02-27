@@ -24,7 +24,8 @@ World](https://www.stormgateworld.com/) team!
 
 ### On Windows: .exe download
 
-Simply [download the latest standalone executable](https://github.com/acarapetis/shroudstone/releases/latest/download/shroudstone.exe)
+Simply [download the latest standalone
+executable](https://github.com/acarapetis/shroudstone/releases/latest/download/shroudstone.exe)
 and double-click it to launch the user interface.
 
 ### On Windows: Using pip
@@ -38,8 +39,8 @@ and double-click it to launch the user interface.
    launch the user interface, or `python -m shroudstone --help` for usage
    instructions for the command-line interface.
 
-You should also be able to get it working using a non-UWP python install, or
-using WSL - just `pip install shroudstone` and you should be good to go.
+If you're already a WSL user, you should also be able to `pip install
+shroudstone` inside your WSL session and have at least the CLI work.
 
 ### On Linux: using pip
 
