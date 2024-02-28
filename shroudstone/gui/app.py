@@ -42,6 +42,7 @@ class AppState:
     replay_name_format: StringVar = field(StringVar)
     reprocess: BoolVar = field(BoolVar)
     dry_run: BoolVar = field(BoolVar)
+    autorename: BoolVar = field(BoolVar)
 
 
 def run():
@@ -196,6 +197,7 @@ def player_id_setup(root: TkWithJobs, state: AppState, cfg: config.Config):
 
     button = ttk.Button(row, text="Continue", command=submit)
     button.pack(side="left")
+
     row.pack(side="top")
 
     # Terminate the program if this window is closed:
@@ -379,6 +381,25 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     )
 
     rename_button.pack(fill="x")
+
+    autorename_cb = ttk.Checkbutton(root, text="Automatically rename new replays", variable=state.autorename)
+    autorename_cb.pack(padx=5, pady=5)
+
+    autorename_ref = None
+
+    @state.autorename.on_change
+    def _(*_):
+        nonlocal autorename_ref
+        if autorename_ref is not None:
+            root.after_cancel(autorename_ref)
+            autorename_ref = None
+        if state.autorename.get():
+            def doit():
+                nonlocal autorename_ref
+                rename_replays()
+                autorename_ref = root.after(30000, doit)
+            doit()
+
 
     @state.nickname_text.on_change
     def _(*_):
