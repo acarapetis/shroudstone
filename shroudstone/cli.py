@@ -142,12 +142,6 @@ def rename_replays(
     reprocess: Annotated[
         bool, typer.Option(help="Reprocess old replays that have already been renamed")
     ] = False,
-    check_nicknames: Annotated[
-        bool,
-        typer.Option(
-            help="Check that nicknames in the replay match those from stormgateworld"
-        ),
-    ] = True,
     clear_cache: Annotated[
         bool,
         typer.Option(
@@ -167,8 +161,8 @@ def rename_replays(
 
     Format strings can use the following values:
 
-    * us: Your nickname
-    * them: Opponent nickname
+    * us: Your nickname (as it appeared in the replay)
+    * them: Opponent nickname (as it appeared in the replay)
     * r1: Race/faction you played (Vanguard or Infernals)
     * r2: Race/faction opponent played
     * time (datetime): Creation time of match
@@ -191,7 +185,6 @@ def rename_replays(
         dry_run=dry_run,
         backup=backup,
         reprocess=reprocess,
-        check_nicknames=check_nicknames,
         format=format or config.replay_name_format,
     )
 

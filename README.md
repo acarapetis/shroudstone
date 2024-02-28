@@ -100,8 +100,8 @@ Note the usage of `:.1` to take just the first letter of the race and result str
 
 Format strings can use the following values:
 
-* `us` (str): Your nickname
-* `them` (str): Opponent nickname
+* `us` (str): Your nickname (as it appeared in the replay)
+* `them` (str): Opponent nickname (as it appeared in the replay)
 * `r1` (str): Race/faction you played (Vanguard or Infernals)
 * `r2` (str): Race/faction opponent played
 * `time` (datetime): Creation time of match

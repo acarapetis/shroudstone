@@ -1,6 +1,7 @@
 """Rename stormgate replays to include useful info in filename"""
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import json
 import os
 import string
 from pathlib import Path
@@ -10,12 +11,14 @@ import logging
 from shutil import copytree
 from time import sleep
 from typing import List, NamedTuple, Optional
+from uuid import UUID
 
 import pandas as pd
 
 from shroudstone.replay import get_match_info
 from shroudstone.config import data_dir
-import shroudstone.stormgateworld as sgw
+from shroudstone.sgw_api import PlayersApi
+from shroudstone.stormgateworld.models import PlayerResponse
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +52,6 @@ def rename_replays(
     dry_run: bool = False,
     backup: bool = True,
     reprocess: bool = False,
-    check_nicknames: bool = True,
 ):
     if dry_run:
         # Don't bother
@@ -90,13 +92,7 @@ def rename_replays(
 
     for r in replays:
         try:
-            match = find_match(matches, r, check_nicknames=check_nicknames)
-        except NicknameMismatch as e:
-            logger.error(
-                f"Found time-based match for {r.path.name} "
-                f"but nicknames didn't match: {e.leaderboard_nicknames} != {e.replay_nicknames}. "
-                "Provide --no-check-nicknames to turn off this check and accept this as a match anyway."
-            )
+            match = find_match(matches, r)
         except NoMatch:
             info = get_match_info(r.path)
             if len(info.players) == 1:
@@ -153,6 +149,18 @@ class ReplayFile(NamedTuple):
         else:
             return None
         return ReplayFile(path, time)
+
+
+def get_player_by_uuid(uuid: UUID) -> PlayerResponse:
+    uuid_dir = cache_dir / "by_uuid"
+    uuid_dir.mkdir(exist_ok=True, parents=True)
+    cache_file = uuid_dir / f"{uuid}.json"
+    if cache_file.exists():
+        player = PlayerResponse.model_validate_json(cache_file.read_text())
+    else:
+        player = PlayersApi.get_player(str(uuid))
+        cache_file.write_text(player.model_dump_json(indent=2))
+    return player
 
 
 def clear_cached_matches(player_id: str):
@@ -227,7 +235,9 @@ def get_player_matches(player_id: str):
 
 
 def fetch_player_matches_page(player_id: str, page: int):
-    data = sgw.api_request(f"/v0/players/{player_id}/matches?page={page}").get("matches")
+    # This is inefficient - we're converting JSON to pydantic then back to JSON
+    # - but not gonna bother optimizing unless it's actually slow
+    data = PlayersApi.get_player_matches(player_id, page=page).model_dump(mode="json").get("matches")
     if not data:
         return None
     data = [flatten_match(player_id, x) for x in data]
@@ -257,46 +267,36 @@ class NoMatch(Exception):
     pass
 
 
-@dataclass
-class NicknameMismatch(Exception):
-    leaderboard_nicknames: List[str]
-    replay_nicknames: List[str]
-
-
-def find_match(matches: pd.DataFrame, replay: ReplayFile, check_nicknames: bool):
+def find_match(matches: pd.DataFrame, replay: ReplayFile):
     """Given a replay file and a list of matches from stormgateworld, find the
-    closest match in time with the correct nicknames."""
+    closest match in time with the correct players."""
     delta = (matches.created_at - replay.time).abs()
     df = matches.assign(delta=delta)
     candidates = df[delta < TOLERANCE].sort_values("delta")
     for _, match in candidates.iterrows():
+        match_player_ids = {match.get("us.player.player_id"), match.get("them.player.player_id")}
         info = get_match_info(replay.path)
-        match["map_name"] = info.map_name or "UnknownMap"
-        match["build_number"] = info.build_number
+        replay_players = [get_player_by_uuid(p.uuid) for p in info.players]
 
-        if not check_nicknames:
+        if match_player_ids == {p.id for p in replay_players}:
+            match["map_name"] = info.map_name or "UnknownMap"
+            match["build_number"] = info.build_number
+            if replay_players[0].id == match["us.player.player_id"]:
+                us, them = info.players[0], info.players[1]
+            else:
+                us, them = info.players[1], info.players[0]
+            match["us.replay_nickname"] = us.nickname
+            match["them.replay_nickname"] = them.nickname
+
             return match
-
-        n1 = match.get("us.player.nickname")
-        n2 = match.get("them.player.nickname")
-
-        replay_nicks = {p.nickname for p in info.players}
-        nickname_diff = {n1, n2}.symmetric_difference(replay_nicks)
-
-        if not nickname_diff:
-            return match
-        else:
-            ns1 = sorted([n1, n2])
-            ns2 = sorted(replay_nicks)
-            raise NicknameMismatch(ns1, ns2)
 
     raise NoMatch()
 
 
 def rename_replay(replay: ReplayFile, match: pd.Series, dry_run: bool, format: str):
     parts = {}
-    parts["us"] = match["us.player.nickname"]
-    parts["them"] = match["them.player.nickname"]
+    parts["us"] = match["us.replay_nickname"]
+    parts["them"] = match["them.replay_nickname"]
 
     try:
         parts["r1"] = match["us.race"][0].capitalize()

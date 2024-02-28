@@ -11,6 +11,7 @@ import webbrowser
 
 from shroudstone import config, renamer, stormgateworld as sgw
 from shroudstone.logging import configure_logging
+from shroudstone.sgw_api import PlayersApi
 from .jobs import TkWithJobs
 
 import logging
@@ -41,7 +42,6 @@ class AppState:
     replay_name_format: StringVar = field(StringVar)
     reprocess: BoolVar = field(BoolVar)
     dry_run: BoolVar = field(BoolVar)
-    check_nicknames: BoolVar = field(BoolVar, value=True)
 
 
 def run():
@@ -65,7 +65,7 @@ def run():
         state.nickname_text.set("Checking...")
 
         def job(pid):
-            nickname = sgw.get_nickname(pid)
+            nickname = PlayersApi.get_player(pid).nickname
             return pid, nickname
 
         def callback(tup):
@@ -337,7 +337,6 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
             my_player_id=cfg.my_player_id,
             reprocess=state.reprocess.get(),
             dry_run=state.dry_run.get(),
-            check_nicknames=state.check_nicknames.get(),
         )
 
     options_frame = ttk.LabelFrame(root, text="Options")
@@ -349,12 +348,6 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
         text="Reprocess replays that have already been renamed",
     )
     reprocess_cb.pack(anchor="w")
-    check_nicknames_cb = tk.Checkbutton(
-        options_frame,
-        variable=state.check_nicknames,
-        text="Check nicknames from Stormgate World match those encoded in replays",
-    )
-    check_nicknames_cb.pack(anchor="w")
     dry_run_cb = tk.Checkbutton(
         options_frame,
         variable=state.dry_run,

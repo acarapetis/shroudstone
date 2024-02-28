@@ -8,5 +8,4 @@ USER_AGENT = f"shroudstone v{__version__}"
 client = ApiClient()
 client.user_agent = USER_AGENT
 
-Players = players_api.PlayersApi(api_client=client)
-Matches = matches_api.MatchesApi(api_client=client)
+PlayersApi = players_api.PlayersApi(api_client=client)
