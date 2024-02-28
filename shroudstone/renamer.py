@@ -94,17 +94,26 @@ def rename_replays(
     matches = get_player_matches(my_player_id)
     if not skipped_replays_file.exists():
         skipped_replays_file.touch()
-    previously_skipped_paths = {Path(x) for x in skipped_replays_file.read_text().splitlines() if x}
+    previously_skipped_paths = {
+        Path(x) for x in skipped_replays_file.read_text().splitlines() if x
+    }
     skipped_paths = []
 
     counts = defaultdict(lambda: 0)
     for r in replays:
         try:
             match = find_match(matches, r)
+        except MatchOngoing:
+            logger.info(
+                f"Found match for {r.path.name}, but it's still marked as ongoing - we'll rename it later."
+            )
+            counts["skipped_ongoing"] += 1
         except NoMatch:
             if r.path in previously_skipped_paths:
                 counts["skipped_old"] += 1
-                logger.debug(f"We've previously skipped {r.path.name}, so not commenting on it this time.")
+                logger.debug(
+                    f"We've previously skipped {r.path.name}, so not commenting on it this time."
+                )
             else:
                 counts["skipped_new"] += 1
                 skipped_paths.append(r.path)
@@ -134,8 +143,13 @@ def rename_replays(
                 print(path, file=f)
 
     prefix = "DRY RUN: " if dry_run else ""
-    counts_str = ("{renamed} replays renamed, {skipped_new} skipped (no matching ladder game)"
-                ", {skipped_old} ignored (previously skipped), {error} errors.").format_map(counts)
+    counts_str = (
+        "{renamed} replays renamed, "
+        "{skipped_new} skipped (no matching ladder game), "
+        "{skipped_ongoing} skipped (ongoing), "
+        "{skipped_old} ignored (previously skipped), "
+        "{error} errors."
+    ).format_map(counts)
     logger.info(prefix + counts_str)
 
 
@@ -247,14 +261,19 @@ def get_player_matches(player_id: str):
         dups = matches.index.duplicated(keep="last")
         matches = matches[~dups]
     matches = matches.sort_values(["created_at", "match_id"])
-    save_cached_matches(player_id, matches)
+    # Don't cache incomplete data from ongoing matches:
+    save_cached_matches(player_id, matches[matches["state"] != "ongoing"])
     return matches
 
 
 def fetch_player_matches_page(player_id: str, page: int):
     # This is inefficient - we're converting JSON to pydantic then back to JSON
     # - but not gonna bother optimizing unless it's actually slow
-    data = PlayersApi.get_player_matches(player_id, page=page).model_dump(mode="json").get("matches")
+    data = (
+        PlayersApi.get_player_matches(player_id, page=page)
+        .model_dump(mode="json")
+        .get("matches")
+    )
     if not data:
         return None
     data = [flatten_match(player_id, x) for x in data]
@@ -284,6 +303,10 @@ class NoMatch(Exception):
     pass
 
 
+class MatchOngoing(Exception):
+    pass
+
+
 def find_match(matches: pd.DataFrame, replay: ReplayFile):
     """Given a replay file and a list of matches from stormgateworld, find the
     closest match in time with the correct players."""
@@ -291,11 +314,19 @@ def find_match(matches: pd.DataFrame, replay: ReplayFile):
     df = matches.assign(delta=delta)
     candidates = df[delta < TOLERANCE].sort_values("delta")
     for _, match in candidates.iterrows():
-        match_player_ids = {match.get("us.player.player_id"), match.get("them.player.player_id")}
+        match_player_ids = {
+            match.get("us.player.player_id"),
+            match.get("them.player.player_id"),
+        }
         info = get_match_info(replay.path)
         replay_players = [get_player_by_uuid(p.uuid) for p in info.players]
 
         if match_player_ids == {p.id for p in replay_players}:
+            if match["state"] == "ongoing":
+                raise MatchOngoing()
+
+            # Add extra data from replay before returning match
+            # TODO: Return this data in a more sensible class (or just a dict?)
             match["map_name"] = info.map_name or "UnknownMap"
             match["build_number"] = info.build_number
             if replay_players[0].id == match["us.player.player_id"]:
