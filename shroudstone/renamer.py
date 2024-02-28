@@ -1,4 +1,5 @@
 """Rename stormgate replays to include useful info in filename"""
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import os
 import string
@@ -96,13 +97,16 @@ def rename_replays(
     previously_skipped_paths = {Path(x) for x in skipped_replays_file.read_text().splitlines() if x}
     skipped_paths = []
 
+    counts = defaultdict(lambda: 0)
     for r in replays:
         try:
             match = find_match(matches, r)
         except NoMatch:
             if r.path in previously_skipped_paths:
+                counts["skipped_old"] += 1
                 logger.debug(f"We've previously skipped {r.path.name}, so not commenting on it this time.")
             else:
+                counts["skipped_new"] += 1
                 skipped_paths.append(r.path)
                 info = get_match_info(r.path)
                 if len(info.players) == 1:
@@ -119,26 +123,24 @@ def rename_replays(
         else:
             try:
                 rename_replay(r, match, dry_run=dry_run, format=format)
+                counts["renamed"] += 1
             except Exception as e:
                 logger.error(f"Unexpected error handling {r.path}: {e}")
+                counts["error"] += 1
 
     if not dry_run:
         with skipped_replays_file.open("at") as f:
             for path in skipped_paths:
                 print(path, file=f)
 
-    if bu_dir:
-        logger.warning(
-            f"Renaming completed. Your replays were backed up to {bu_dir}. "
-            "Please check that nothing went wrong now - subsequent runs will overwrite your backup!"
-        )
+    prefix = "DRY RUN: " if dry_run else ""
+    counts_str = ("{renamed} replays renamed, {skipped_new} skipped (no matching ladder game)"
+                ", {skipped_old} ignored (previously skipped), {error} errors.").format_map(counts)
+    logger.info(prefix + counts_str)
 
 
 def backup_dir(replay_dir: Path, bu_dir: Path):
-    logger.warning(
-        f"Backing up your replays to {bu_dir}. "
-        "Please check the results after this run - subsequent runs will overwrite your backup! "
-    )
+    logger.info(f"Backing up your replays to {bu_dir}.")
     copytree(replay_dir, bu_dir, dirs_exist_ok=True)
 
 
