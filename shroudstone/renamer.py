@@ -341,12 +341,9 @@ def rename_replay(replay: ReplayFile, match: pd.Series, dry_run: bool, format: s
         parts["duration"] = "??m??s"
         parts["time"] = replay.time.strftime("")
 
-    try:
-        newname = format.format(**parts)
-        target = replay.path.parent / newname
-        do_rename(replay.path, target, dry_run=dry_run)
-    except Exception as e:
-        logger.error(f"Unexpected error renaming {replay.path}: {e}")
+    newname = format.format(**parts)
+    target = replay.path.parent / newname
+    do_rename(replay.path, target, dry_run=dry_run)
 
 
 def do_rename(source: Path, target: Path, dry_run: bool):
