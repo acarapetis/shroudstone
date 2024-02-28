@@ -1,7 +1,5 @@
 """Rename stormgate replays to include useful info in filename"""
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-import json
 import os
 import string
 from pathlib import Path
@@ -10,7 +8,7 @@ import re
 import logging
 from shutil import copytree
 from time import sleep
-from typing import List, NamedTuple, Optional
+from typing import Iterable, NamedTuple, Optional
 from uuid import UUID
 
 import pandas as pd
@@ -32,6 +30,8 @@ BAD_CHARS = re.compile(r'[<>:"/\\|?*\0]')
 cache_dir = data_dir / "stormgateworld-cache"
 """Directory in which match data is cached"""
 
+skipped_replays_file = data_dir / "skipped_replays.txt"
+
 FIELDS = [
     "us",
     "them",
@@ -52,6 +52,7 @@ def rename_replays(
     dry_run: bool = False,
     backup: bool = True,
     reprocess: bool = False,
+    files: Optional[Iterable[Path]] = None,
 ):
     if dry_run:
         # Don't bother
@@ -66,21 +67,22 @@ def rename_replays(
         bu_dir = None
         logger.warning("No backup being made! You asked for it!")
 
-    if reprocess:
-        # Reprocess all replays
-        pattern = "**/*.SGReplay"
-        logger.info(f"Searching for all replays in {replay_dir}.")
-    else:
-        # Only look for replays we haven't already renamed
-        pattern = "**/CL*.SGReplay"
-        logger.info(f"Searching for unrenamed replays in {replay_dir}.")
+    if files is None:
+        if reprocess:
+            # Reprocess all replays
+            pattern = "**/*.SGReplay"
+            logger.info(f"Searching for all replays in {replay_dir}.")
+        else:
+            # Only look for replays we haven't already renamed
+            pattern = "**/CL*.SGReplay"
+            logger.info(f"Searching for unrenamed replays in {replay_dir}.")
 
-    replays = [
-        x for x in map(ReplayFile.from_path, replay_dir.glob(pattern)) if x is not None
-    ]
+        files = replay_dir.glob(pattern)
+
+    replays = [x for x in map(ReplayFile.from_path, files) if x is not None]
     if not replays:
         logger.warning(
-            "No replays found to rename! "
+            "No new replays found to rename! "
             f"If you weren't expecting this, check your replay_dir '{replay_dir}' is correct."
         )
         return
@@ -89,28 +91,41 @@ def rename_replays(
     earliest_time = min(x.time for x in replays)
     logger.info(f"Found {n} unrenamed replays going back to {earliest_time}.")
     matches = get_player_matches(my_player_id)
+    if not skipped_replays_file.exists():
+        skipped_replays_file.touch()
+    previously_skipped_paths = {Path(x) for x in skipped_replays_file.read_text().splitlines() if x}
+    skipped_paths = []
 
     for r in replays:
         try:
             match = find_match(matches, r)
         except NoMatch:
-            info = get_match_info(r.path)
-            if len(info.players) == 1:
-                nick = info.players[0].nickname
-                logger.info(
-                    f"No match found for {r.path.name}. Only one player was found ({nick})"
-                    ", so this is probably a match vs AI."
-                )
+            if r.path in previously_skipped_paths:
+                logger.debug(f"We've previously skipped {r.path.name}, so not commenting on it this time.")
             else:
-                logger.warning(
-                    f"No match found for {r.path.name} in stormgateworld match history."
-                    "Could be a custom game?"
-                )
+                skipped_paths.append(r.path)
+                info = get_match_info(r.path)
+                if len(info.players) == 1:
+                    nick = info.players[0].nickname
+                    logger.info(
+                        f"No match found for {r.path.name}. Only one player was found ({nick})"
+                        ", so this is probably a match vs AI."
+                    )
+                else:
+                    logger.warning(
+                        f"No match found for {r.path.name} in stormgateworld match history."
+                        "Could be a custom game?"
+                    )
         else:
             try:
                 rename_replay(r, match, dry_run=dry_run, format=format)
             except Exception as e:
                 logger.error(f"Unexpected error handling {r.path}: {e}")
+
+    if not dry_run:
+        with skipped_replays_file.open("at") as f:
+            for path in skipped_paths:
+                print(path, file=f)
 
     if bu_dir:
         logger.warning(
