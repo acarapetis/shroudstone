@@ -394,6 +394,28 @@ def guess_replay_dir() -> Optional[Path]:
             return path
 
 
+def guess_player_uuid(replay_dir: Path) -> Optional[UUID]:
+    uuids = []
+    for d in replay_dir.iterdir():
+        if d.is_dir():
+            try:
+                uuids.append(UUID(d.name))
+            except ValueError:
+                pass
+    if len(uuids) == 1:
+        return uuids[0]
+
+
+def guess_player(replay_dir: Path) -> Optional[PlayerResponse]:
+    uuid = guess_player_uuid(replay_dir)
+    if not uuid:
+        return None
+    try:
+        return get_player_by_uuid(uuid)
+    except Exception:
+        return None
+
+
 def validate_format_string(format: str):
     parts = string.Formatter().parse(format)
     for _, field_name, _, _ in parts:

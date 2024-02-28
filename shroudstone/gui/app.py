@@ -80,7 +80,19 @@ def run():
     do_setup = cfg.replay_dir is None or cfg.my_player_id is None
     if do_setup:
         root.withdraw()  # Hide the main window to begin with
-        first_time_setup(root, state, cfg)
+        configure_replay_dir(root, state, cfg)
+        if cfg.replay_dir and (player := renamer.guess_player(cfg.replay_dir)):
+            state.player_id.set(player.id)
+            cfg.my_player_id = player.id
+            showinfo(
+                title="Stormgate World Player ID Detected",
+                message="Autodetected your player identity: "
+                f"player_id={player.id}, nickname={player.nickname}",
+            )
+            cfg.save()
+            root.deiconify()  # No need to show setup window
+        else:
+            player_id_setup(root, state, cfg)
     else:
         state.player_id.set(cfg.my_player_id or "")
 
@@ -114,7 +126,25 @@ def setup_icon(root: tk.Tk):
         root.iconphoto(True, tk.PhotoImage(file=str(assets_dir / "shroudstone.png")))
 
 
-def first_time_setup(root: TkWithJobs, state: AppState, cfg: config.Config):
+def configure_replay_dir(root: TkWithJobs, state: AppState, cfg: config.Config):
+    cfg.replay_dir = renamer.guess_replay_dir()
+    if cfg.replay_dir is None:
+        state.replay_dir.set("")
+        showwarning(
+            title="Stormgate Replay Directory",
+            message="Could not automatically find your replay directory - "
+            "please configure it manually on the next screen.",
+        )
+    else:
+        state.replay_dir.set(str(cfg.replay_dir))
+        showinfo(
+            title="Stormgate Replay Directory",
+            message=f"Detected your replay directory as {cfg.replay_dir}."
+            " If this is incorrect, please configure it manually on the next screen.",
+        )
+
+
+def player_id_setup(root: TkWithJobs, state: AppState, cfg: config.Config):
     dialog = tk.Toplevel()
     dialog.geometry("800x300")
     dialog.title("Shroudstone First-Time Setup")
@@ -122,7 +152,7 @@ def first_time_setup(root: TkWithJobs, state: AppState, cfg: config.Config):
     text.pack(side="top", fill="both", expand=True)
     append = partial(text.insert, "end")
     append(
-        "You have not yet configured your Stormgate World player ID. To find it:\n"
+        "Unfortunately, we could not automatically determine your Stormgate World Player ID. To find it:\n"
         "1. visit "
     )
     append("https://stormgateworld.com/leaderboards/ranked_1v1", ["link"])
@@ -161,21 +191,6 @@ def first_time_setup(root: TkWithJobs, state: AppState, cfg: config.Config):
     def submit():
         cfg.my_player_id = state.player_id.get()
         dialog.withdraw()
-        cfg.replay_dir = renamer.guess_replay_dir()
-        if cfg.replay_dir is None:
-            state.replay_dir.set("")
-            showwarning(
-                title="Stormgate Replay Directory",
-                message="Could not automatically find your replay directory - "
-                "please configure it manually on the next screen.",
-            )
-        else:
-            state.replay_dir.set(str(cfg.replay_dir))
-            showinfo(
-                title="Stormgate Replay Directory",
-                message=f"Detected your replay directory as {cfg.replay_dir}."
-                " If this is incorrect, please configure it manually on the next screen.",
-            )
         cfg.save()
         root.deiconify()
 
@@ -244,7 +259,9 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     def browse_replay_dir():
         current = Path(state.replay_dir.get())
         initial = current if current.exists() else None
-        new = askdirectory(title="Stormgate Replay Directory", initialdir=initial, mustexist=True)
+        new = askdirectory(
+            title="Stormgate Replay Directory", initialdir=initial, mustexist=True
+        )
         state.replay_dir.set(new)
 
     def guess_replay_dir():
@@ -321,7 +338,7 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
 
         def callback(_):
             rename_button.config(
-                text="Rename My Replays!",
+                text="Rename My Replays Now",
                 state="normal",
             )
 
@@ -357,7 +374,7 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
 
     rename_button = ttk.Button(
         root,
-        text="Rename My Replays!",
+        text="Rename My Replays Now",
         command=rename_replays,
     )
 
