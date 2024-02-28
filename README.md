@@ -28,6 +28,17 @@ Simply [download the latest standalone
 executable](https://github.com/acarapetis/shroudstone/releases/latest/download/shroudstone.exe)
 and double-click it to launch the user interface.
 
+Assuming you have a normal Stormgate install with a single account, everything
+should be autodetected and you'll be faced with the main user interface:
+
+![Screenshot of shroudstone](./docs/example-screenshot.png)
+
+Just click "Rename My Replays Now" to run the renaming process on your existing replays.
+
+If you enable the checkbox "Automatically rename new replays" and leave
+Shroudstone open in the background while you play, then the process will run
+every 30 seconds, renaming new replays as they are created.
+
 ### On Windows: Using pip
 
 1. Install Python 3.11 using
