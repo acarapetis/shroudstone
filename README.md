@@ -26,7 +26,10 @@ World](https://www.stormgateworld.com/) team!
 
 Simply [download the latest standalone
 executable](https://github.com/acarapetis/shroudstone/releases/latest/download/shroudstone.exe)
-and double-click it to launch the user interface.
+and double-click it to launch the user interface. (The first time you do,
+you'll probably get a Windows Defender SmartScreen popup - you did just
+download some random program from the internet, after all! If you trust me,
+click "More Info" and then "Run Anyway".)
 
 Assuming you have a normal Stormgate install with a single account, everything
 should be autodetected and you'll be faced with the main user interface:
