@@ -4,4 +4,4 @@ pyinstaller ^
     --console ^
     --collect-all shroudstone ^
     --icon shroudstone\gui\assets\shroudstone.ico ^
-    shroudstone\exe_entrypoint.py
+    shroudstone\__main__.py

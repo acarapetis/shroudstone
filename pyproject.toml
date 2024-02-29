@@ -29,4 +29,4 @@ requires-python = "~=3.8"
 Source = "https://github.com/acarapetis/shroudstone"
 
 [project.scripts]
-shroudstone = "shroudstone.cli:app"
+shroudstone = "shroudstone.__main__:main"

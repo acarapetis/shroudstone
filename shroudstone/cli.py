@@ -18,7 +18,7 @@ from shroudstone import __version__
 from shroudstone.config import Config, config_file, DEFAULT_FORMAT
 from shroudstone.logging import configure_logging
 
-app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich", help=sys.modules[__name__].__doc__)
+app = typer.Typer(rich_markup_mode="rich", help=sys.modules[__name__].__doc__)
 
 logger = logging.getLogger(__name__)
 
