@@ -7,13 +7,15 @@ from pathlib import Path
 import platform
 import re
 import logging
-from shutil import copytree
+from shutil import copytree, rmtree
 from time import sleep
 from typing import Iterable, NamedTuple, Optional
 from uuid import UUID
+from packaging import version
 
 import pandas as pd
 
+from shroudstone import __version__
 from shroudstone.replay import get_match_info
 from shroudstone.config import data_dir
 from shroudstone.sgw_api import PlayersApi
@@ -31,7 +33,12 @@ BAD_CHARS = re.compile(r'[<>:"/\\|?*\0]')
 cache_dir = data_dir / "stormgateworld-cache"
 """Directory in which match data is cached"""
 
+uuid_dir = cache_dir / "by_uuid"
+"""Directory in which UUID -> player_id mapping is cached"""
+
 skipped_replays_file = data_dir / "skipped_replays.txt"
+"""Directory in which previouslyskipped replays are recorded"""
+
 
 FIELDS = [
     "us",
@@ -46,6 +53,19 @@ FIELDS = [
 ]
 
 
+def migrate():
+    last_run_version_file = data_dir / "last_run_version.txt"
+    if last_run_version_file.exists():
+        last_run_version = version.parse(last_run_version_file.read_text(encoding="utf-8"))
+    else:
+        last_run_version = version.parse("0.1.0a29")
+    if last_run_version < version.parse("0.1.0a30"):
+        logger.info("Cache files are from an incompatible version of shroudstone, deleting them.")
+        skipped_replays_file.unlink(missing_ok=True)
+        rmtree(cache_dir)
+    last_run_version_file.write_text(__version__, encoding="utf-8")
+
+
 def rename_replays(
     replay_dir: Path,
     my_player_id: str,
@@ -55,6 +75,7 @@ def rename_replays(
     reprocess: bool = False,
     files: Optional[Iterable[Path]] = None,
 ):
+    migrate()
     if dry_run:
         # Don't bother
         bu_dir = None
@@ -95,7 +116,7 @@ def rename_replays(
     if not skipped_replays_file.exists():
         skipped_replays_file.touch()
     previously_skipped_paths = {
-        Path(x) for x in skipped_replays_file.read_text().splitlines() if x
+        Path(x) for x in skipped_replays_file.read_text(encoding="utf-8").splitlines() if x
     }
     skipped_paths = []
 
@@ -138,7 +159,7 @@ def rename_replays(
                 counts["error"] += 1
 
     if not dry_run:
-        with skipped_replays_file.open("at") as f:
+        with skipped_replays_file.open("at", encoding="utf-8") as f:
             for path in skipped_paths:
                 print(path, file=f)
 
@@ -183,14 +204,13 @@ class ReplayFile(NamedTuple):
 
 
 def get_player_by_uuid(uuid: UUID) -> PlayerResponse:
-    uuid_dir = cache_dir / "by_uuid"
     uuid_dir.mkdir(exist_ok=True, parents=True)
     cache_file = uuid_dir / f"{uuid}.json"
     if cache_file.exists():
-        player = PlayerResponse.model_validate_json(cache_file.read_text())
+        player = PlayerResponse.model_validate_json(cache_file.read_text(encoding="utf-8"))
     else:
         player = PlayersApi.get_player(str(uuid))
-        cache_file.write_text(player.model_dump_json(indent=2))
+        cache_file.write_text(player.model_dump_json(indent=2), encoding="utf-8")
     return player
 
 

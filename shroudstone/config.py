@@ -33,12 +33,12 @@ class Config(BaseModel):
     @staticmethod
     def load():
         if config_file.exists():
-            with config_file.open("rt") as f:
+            with config_file.open("rt", encoding="utf-8") as f:
                 content = yaml.load(f, Loader=yaml.SafeLoader)
                 return Config.model_validate(content)
         else:
             return Config()
 
     def save(self):
-        with config_file.open("wt") as f:
+        with config_file.open("wt", encoding="utf-8") as f:
             yaml.dump(self.model_dump(mode="json"), f, width=float("inf"))

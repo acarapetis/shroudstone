@@ -47,6 +47,7 @@ class AppState:
 
 def run():
     configure_logging()
+    renamer.migrate()
     logger.info(
         "Keep this console open - it will show progress information during renaming."
     )
@@ -204,6 +205,16 @@ def player_id_setup(root: TkWithJobs, state: AppState, cfg: config.Config):
     dialog.protocol("WM_DELETE_WINDOW", root.destroy)
 
 
+def rename_replays_wrapper(*args, **kwargs):
+    try:
+        return renamer.rename_replays(*args, **kwargs)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error occurred! Please report here: "
+            "https://github.com/acarapetis/shroudstone/issues"
+        )
+
+
 def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     def reload_config():
         nonlocal cfg
@@ -349,7 +360,7 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
         cfg.my_player_id = state.player_id.get()
 
         root.jobs.submit(
-            renamer.rename_replays,
+            rename_replays_wrapper,
             callback,
             replay_dir=cfg.replay_dir,
             format=cfg.replay_name_format,
@@ -382,7 +393,9 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
 
     rename_button.pack(fill="x")
 
-    autorename_cb = ttk.Checkbutton(root, text="Automatically rename new replays", variable=state.autorename)
+    autorename_cb = ttk.Checkbutton(
+        root, text="Automatically rename new replays", variable=state.autorename
+    )
     autorename_cb.pack(padx=5, pady=5)
 
     autorename_ref = None
@@ -394,12 +407,13 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
             root.after_cancel(autorename_ref)
             autorename_ref = None
         if state.autorename.get():
+
             def doit():
                 nonlocal autorename_ref
                 rename_replays()
                 autorename_ref = root.after(30000, doit)
-            doit()
 
+            doit()
 
     @state.nickname_text.on_change
     def _(*_):
