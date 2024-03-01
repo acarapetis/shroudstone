@@ -16,7 +16,7 @@ from packaging import version
 import pandas as pd
 
 from shroudstone import __version__
-from shroudstone.replay import get_match_info
+from shroudstone.replay import summarize_replay
 from shroudstone.config import data_dir
 from shroudstone.sgw_api import PlayersApi
 from shroudstone.stormgateworld.models import PlayerResponse
@@ -138,7 +138,7 @@ def rename_replays(
             else:
                 counts["skipped_new"] += 1
                 skipped_paths.append(r.path)
-                info = get_match_info(r.path)
+                info = summarize_replay(r.path)
                 if len(info.players) == 1:
                     nick = info.players[0].nickname
                     logger.info(
@@ -338,7 +338,7 @@ def find_match(matches: pd.DataFrame, replay: ReplayFile):
             match.get("us.player.player_id"),
             match.get("them.player.player_id"),
         }
-        info = get_match_info(replay.path)
+        info = summarize_replay(replay.path)
         replay_players = [get_player_by_uuid(p.uuid) for p in info.players]
 
         if match_player_ids == {p.id for p in replay_players}:

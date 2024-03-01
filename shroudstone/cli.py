@@ -47,8 +47,9 @@ def callback(
 @app.command(rich_help_panel="Tools for nerds")
 def get_replay_info(replay_file: typer.FileBinaryRead):
     """Extract information from a replay, outputting it in JSON format."""
-    from shroudstone.replay import get_match_info
-    typer.echo(get_match_info(replay_file).model_dump_json(indent=2))
+    from shroudstone.replay import summarize_replay
+
+    typer.echo(summarize_replay(replay_file).model_dump_json(indent=2))
 
 
 @app.command(rich_help_panel="Tools for nerds")
