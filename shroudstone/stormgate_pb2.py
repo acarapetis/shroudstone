@@ -14,25 +14,39 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fstormgate.proto\x12\tstormgate\"\x13\n\x03Map\x12\x0c\n\x04name\x18\x02 \x01(\t\"$\n\x04UUID\x12\r\n\x05part1\x18\x01 \x01(\x03\x12\r\n\x05part2\x18\x02 \x01(\x03\"\x8a\x01\n\x06Player\x12\x1d\n\x04uuid\x18\x02 \x01(\x0b\x32\x0f.stormgate.UUID\x12*\n\x04name\x18\x03 \x01(\x0b\x32\x1c.stormgate.Player.PlayerName\x1a\x35\n\nPlayerName\x12\x10\n\x08nickname\x18\x01 \x01(\t\x12\x15\n\rdiscriminator\x18\x02 \x01(\t\"\xfe\x01\n\x0bReplayChunk\x12\x11\n\ttimestamp\x18\x01 \x01(\x05\x12-\n\x05inner\x18\x03 \x01(\x0b\x32\x1e.stormgate.ReplayChunk.Wrapper\x1a\xac\x01\n\x07Wrapper\x12=\n\x07\x63ontent\x18\x01 \x01(\x0b\x32,.stormgate.ReplayChunk.Wrapper.ReplayContent\x1a\x62\n\rReplayContent\x12\x1d\n\x03map\x18\x03 \x01(\x0b\x32\x0e.stormgate.MapH\x00\x12#\n\x06player\x18\x0c \x01(\x0b\x32\x11.stormgate.PlayerH\x00\x42\r\n\x0b\x63ontenttypeb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fstormgate.proto\x12\tstormgate\"\x99\x04\n\x0bReplayChunk\x12\x11\n\ttimestamp\x18\x01 \x01(\x05\x12\x11\n\tclient_id\x18\x02 \x01(\x05\x12-\n\x05inner\x18\x03 \x01(\x0b\x32\x1e.stormgate.ReplayChunk.Wrapper\x1a\xb4\x03\n\x07Wrapper\x12=\n\x07\x63ontent\x18\x01 \x01(\x0b\x32,.stormgate.ReplayChunk.Wrapper.ReplayContent\x1a\xe9\x02\n\rReplayContent\x12\x1d\n\x03map\x18\x03 \x01(\x0b\x32\x0e.stormgate.MapH\x00\x12#\n\x06player\x18\x0c \x01(\x0b\x32\x11.stormgate.PlayerH\x00\x12\x31\n\x0b\x63hange_slot\x18\r \x01(\x0b\x32\x1a.stormgate.LobbyChangeSlotH\x00\x12\x33\n\x0cset_variable\x18\x0f \x01(\x0b\x32\x1b.stormgate.LobbySetVariableH\x00\x12*\n\nstart_game\x18\x12 \x01(\x0b\x32\x14.stormgate.StartGameH\x00\x12\x35\n\x10player_left_game\x18\x19 \x01(\x0b\x32\x19.stormgate.PlayerLeftGameH\x00\x12\x39\n\x12\x61ssign_player_slot\x18% \x01(\x0b\x32\x1b.stormgate.AssignPlayerSlotH\x00\x42\x0e\n\x0c\x63ontent_type\"1\n\x03Map\x12\x0e\n\x06\x66older\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0c\n\x04seed\x18\x03 \x01(\x05\"\x8a\x01\n\x06Player\x12\x1d\n\x04uuid\x18\x02 \x01(\x0b\x32\x0f.stormgate.UUID\x12*\n\x04name\x18\x03 \x01(\x0b\x32\x1c.stormgate.Player.PlayerName\x1a\x35\n\nPlayerName\x12\x10\n\x08nickname\x18\x01 \x01(\t\x12\x15\n\rdiscriminator\x18\x02 \x01(\t\"\xd1\x01\n\x0fLobbyChangeSlot\x12\x35\n\x06\x63hoice\x18\x01 \x01(\x0b\x32%.stormgate.LobbyChangeSlot.SlotChoice\x1a\x86\x01\n\nSlotChoice\x12K\n\rspecific_slot\x18\x02 \x01(\x0b\x32\x32.stormgate.LobbyChangeSlot.SlotChoice.SpecificSlotH\x00\x1a\x1c\n\x0cSpecificSlot\x12\x0c\n\x04slot\x18\x01 \x01(\x05\x42\r\n\x0b\x63hoice_type\"D\n\x10LobbySetVariable\x12\x0c\n\x04slot\x18\x03 \x01(\x05\x12\x13\n\x0bvariable_id\x18\x04 \x01(\r\x12\r\n\x05value\x18\x05 \x01(\r\"\x0b\n\tStartGame\"6\n\x0ePlayerLeftGame\x12$\n\x0bplayer_uuid\x18\x01 \x01(\x0b\x32\x0f.stormgate.UUID\"Q\n\x10\x41ssignPlayerSlot\x12\x1d\n\x04uuid\x18\x01 \x01(\x0b\x32\x0f.stormgate.UUID\x12\x0c\n\x04slot\x18\x02 \x01(\x03\x12\x10\n\x08nickname\x18\x03 \x01(\t\"$\n\x04UUID\x12\r\n\x05part1\x18\x01 \x01(\x03\x12\r\n\x05part2\x18\x02 \x01(\x03\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'stormgate_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
-  _globals['_MAP']._serialized_start=30
-  _globals['_MAP']._serialized_end=49
-  _globals['_UUID']._serialized_start=51
-  _globals['_UUID']._serialized_end=87
-  _globals['_PLAYER']._serialized_start=90
-  _globals['_PLAYER']._serialized_end=228
-  _globals['_PLAYER_PLAYERNAME']._serialized_start=175
-  _globals['_PLAYER_PLAYERNAME']._serialized_end=228
-  _globals['_REPLAYCHUNK']._serialized_start=231
-  _globals['_REPLAYCHUNK']._serialized_end=485
-  _globals['_REPLAYCHUNK_WRAPPER']._serialized_start=313
-  _globals['_REPLAYCHUNK_WRAPPER']._serialized_end=485
-  _globals['_REPLAYCHUNK_WRAPPER_REPLAYCONTENT']._serialized_start=387
-  _globals['_REPLAYCHUNK_WRAPPER_REPLAYCONTENT']._serialized_end=485
+  _globals['_REPLAYCHUNK']._serialized_start=31
+  _globals['_REPLAYCHUNK']._serialized_end=568
+  _globals['_REPLAYCHUNK_WRAPPER']._serialized_start=132
+  _globals['_REPLAYCHUNK_WRAPPER']._serialized_end=568
+  _globals['_REPLAYCHUNK_WRAPPER_REPLAYCONTENT']._serialized_start=207
+  _globals['_REPLAYCHUNK_WRAPPER_REPLAYCONTENT']._serialized_end=568
+  _globals['_MAP']._serialized_start=570
+  _globals['_MAP']._serialized_end=619
+  _globals['_PLAYER']._serialized_start=622
+  _globals['_PLAYER']._serialized_end=760
+  _globals['_PLAYER_PLAYERNAME']._serialized_start=707
+  _globals['_PLAYER_PLAYERNAME']._serialized_end=760
+  _globals['_LOBBYCHANGESLOT']._serialized_start=763
+  _globals['_LOBBYCHANGESLOT']._serialized_end=972
+  _globals['_LOBBYCHANGESLOT_SLOTCHOICE']._serialized_start=838
+  _globals['_LOBBYCHANGESLOT_SLOTCHOICE']._serialized_end=972
+  _globals['_LOBBYCHANGESLOT_SLOTCHOICE_SPECIFICSLOT']._serialized_start=929
+  _globals['_LOBBYCHANGESLOT_SLOTCHOICE_SPECIFICSLOT']._serialized_end=957
+  _globals['_LOBBYSETVARIABLE']._serialized_start=974
+  _globals['_LOBBYSETVARIABLE']._serialized_end=1042
+  _globals['_STARTGAME']._serialized_start=1044
+  _globals['_STARTGAME']._serialized_end=1055
+  _globals['_PLAYERLEFTGAME']._serialized_start=1057
+  _globals['_PLAYERLEFTGAME']._serialized_end=1111
+  _globals['_ASSIGNPLAYERSLOT']._serialized_start=1113
+  _globals['_ASSIGNPLAYERSLOT']._serialized_end=1194
+  _globals['_UUID']._serialized_start=1196
+  _globals['_UUID']._serialized_end=1232
 # @@protoc_insertion_point(module_scope)

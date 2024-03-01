@@ -2,20 +2,36 @@ syntax = "proto3";
 
 package stormgate;
 
-// protobuf schema for what I've been able to decipher in stormgate replays.
-// Obviously extremely incomplete.
+// protobuf schema for parsing lobby info from Stormgate replays
+// Thanks to CascadeFury for most of this.
 
-message Map {
-    string name = 2;
+// Each chunk seems to be of the form 3: {1: {actual content}}
+// Since I don't know the meaning of those outer structs yet, I'm just putting them as inline messages:
+message ReplayChunk {
+    int32 timestamp = 1; // Pretty sure this is time in milliseconds since game start
+    int32 client_id = 2;
+    message Wrapper {
+        message ReplayContent {
+            oneof content_type {
+                Map map = 3;
+                Player player = 12;
+                LobbyChangeSlot change_slot = 13;
+                LobbySetVariable set_variable = 15;
+                StartGame start_game = 18;
+                PlayerLeftGame player_left_game = 25;
+                AssignPlayerSlot assign_player_slot = 37;
+            }
+        }
+        ReplayContent content = 1;
+    }
+    Wrapper inner = 3;
 }
 
-// UUIDs are encoded as 2 varints.
-// To recover the original UUID, encode these as signed 64-bit big-endian
-// integers and concatenate the resulting bitstrings; or in python:
-// uuid.UUID(bytes=struct.pack(">qq", part1, part2))
-message UUID {
-    int64 part1 = 1;
-    int64 part2 = 2;
+// 3 - Map
+message Map {
+    string folder = 1;
+    string name = 2;
+    int32 seed = 3;
 }
 
 message Player {
@@ -27,19 +43,54 @@ message Player {
     PlayerName name = 3;
 }
 
-// Each chunk seems to be of the form 3: {1: {actual content}}
-// Since I don't know the meaning of those outer structs yet, I'm just putting them as inline messages:
-message ReplayChunk {
-    int32 timestamp = 1; // Pretty sure this is time in milliseconds since game start
-    message Wrapper {
-        message ReplayContent {
-            oneof contenttype {
-                Map map = 3;
-                Player player = 12;
-            }
+// 13 - Sent when player changes slot (leave/enter), note that SlotChoice
+// contains either a request for a specific slot, or what I assume is a "next
+// slot available", slot 255 is observer
+message LobbyChangeSlot {
+    message SlotChoice {
+        message SpecificSlot {
+            int32 slot = 1;
         }
-        ReplayContent content = 1;
+        oneof choice_type {
+            SpecificSlot specific_slot = 2;
+        }
     }
-    Wrapper inner = 3;
+
+    SlotChoice choice = 1;
 }
 
+// 15 - Sent when a player slot has a variable changed
+// Var 374945738: Type, 0 = Closed, 1 = Human, 2 = AI
+// Var 2952722564: Faction, 0 = Vanguard, 1 = Infernals
+// Var 655515685: AIType, 0 = Peaceful, 1 = Junior, 2 = Senior
+message LobbySetVariable {
+    int32 slot = 3;
+    uint32 variable_id = 4;
+    uint32 value = 5;
+}
+
+// 18 - "Start Game" Sent by players after second ReadyUp, that probably indicates player finished loading into the map
+message StartGame {
+}
+
+// 25 - When a player exits the game/disconnects
+message PlayerLeftGame {
+    UUID player_uuid = 1;
+}
+
+// 37 - AssignPlayer (done by server as pl=64)
+// Appears only in ladder games?
+message AssignPlayerSlot {
+    UUID uuid = 1;
+    int64 slot = 2;
+    string nickname = 3;
+}
+
+// UUIDs are encoded as 2 varints.
+// To recover the original UUID, encode these as signed 64-bit big-endian
+// integers and concatenate the resulting bitstrings; or in python:
+// uuid.UUID(bytes=struct.pack(">qq", part1, part2))
+message UUID {
+    int64 part1 = 1;
+    int64 part2 = 2;
+}
