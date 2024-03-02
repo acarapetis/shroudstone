@@ -86,21 +86,22 @@ class Player(BaseModel):
     uuid: Optional[UUID] = None
     faction: Optional[str] = None
     is_ai: bool = False
+    disconnect_time: Optional[float] = None
 
 
 class ReplaySummary(BaseModel):
     build_number: int
-    map_name: str
+    map_name: Optional[str]
     players: List[Player] = []
     spectators: List[Spectator] = []
     duration_seconds: Optional[float] = None
+    is_1v1_ladder_game: bool = False
 
 
 def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
     """Parse what we can from a stormgate replay."""
     build_number = get_build_number(replay)
     state = GameState.at_end_of(replay)
-    assert state.map_name is not None
     info = ReplaySummary(
         build_number=build_number,
         map_name=state.map_name,
@@ -124,7 +125,7 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
         elif slot.client_id is not None:
             client = state.clients.pop(slot.client_id)
             info.players.append(
-                Player(
+                p := Player(
                     nickname=client.nickname,
                     nickname_discriminator=client.discriminator,
                     uuid=client.uuid,
@@ -132,6 +133,8 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                     faction=slot.faction.name,
                 )
             )
+            if state.game_started_time is not None and client.left_game_time is not None:
+                p.disconnect_time = (client.left_game_time - state.game_started_time)*REPLAY_TIMESTAMP_UNIT
     for client in state.clients.values():
         if client.slot_number != 255:
             raise ReplayParsingError("Player not in a slot but slot_number != 255?")
@@ -142,6 +145,7 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                 uuid=client.uuid,
             )
         )
+    info.is_1v1_ladder_game = len(info.players) == 2 and len(info.spectators) == 0 and len(state.slot_assignments) > 0
     return info
 
 
