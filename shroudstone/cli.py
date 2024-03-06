@@ -17,10 +17,12 @@ import typer
 from shroudstone import __version__
 from shroudstone.config import Config, config_file, DEFAULT_FORMAT
 from shroudstone.logging import configure_logging
+from shroudstone.renamer import Strategy
 
 app = typer.Typer(rich_markup_mode="rich", help=sys.modules[__name__].__doc__)
 
 logger = logging.getLogger(__name__)
+
 
 def version(value: bool):
     if value:
@@ -56,6 +58,7 @@ def get_replay_info(replay_file: typer.FileBinaryRead):
 def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
     """Extract a stormgate replay into a directory containing individual protoscope messages."""
     from shroudstone.replay import split_replay
+
     output_directory.mkdir(exist_ok=True, parents=True)
     i = 0
     for i, chunk in enumerate(split_replay(replay_file)):
@@ -63,6 +66,17 @@ def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
     typer.echo(
         f"Wrote {i+1} replay messages in protoscope wire format to {output_directory}/."
     )
+
+
+@app.command(rich_help_panel="Tools for nerds")
+def dump_replay(replay_file: typer.FileBinaryRead):
+    """Decode a replay and print a human-readable-ish representation of its contents."""
+    from shroudstone.replay import split_replay
+    from shroudstone.stormgate_pb2 import ReplayChunk
+
+    for bytestring in split_replay(replay_file):
+        chunk = ReplayChunk.FromString(bytestring)
+        print(chunk.timestamp, chunk.client_id, chunk.inner.content)
 
 
 @app.command(rich_help_panel="Tools for nerds")
@@ -77,6 +91,7 @@ def config_path():
 def edit_config(xdg_open: bool = False):
     """Open the shroudstone configuration file in your default text editor."""
     from shroudstone import renamer
+
     if not config_file.exists():
         logger.info("No config file found, doing our best to auto-generate one.")
         cfg = Config()
@@ -99,7 +114,9 @@ def edit_config(xdg_open: bool = False):
 @app.command(rich_help_panel="Replay renaming")
 def gui():
     from shroudstone.gui import app
+
     app.run()
+
 
 @app.command(rich_help_panel="Replay renaming")
 def create_rename_replays_shortcut():
@@ -131,7 +148,6 @@ def rename_replays(
         Optional[Path],
         typer.Option(file_okay=False, dir_okay=True, exists=True, readable=True),
     ] = None,
-    my_player_id: Optional[str] = None,
     format: Annotated[
         Optional[str],
         typer.Option(
@@ -147,14 +163,16 @@ def rename_replays(
         bool,
         typer.Option(
             help="Clear the local match cache and re-retrieve all data from Stormgate World."
-        )
+        ),
     ] = False,
+    duration_strategy: Strategy = Strategy.prefer_stormgateworld,
+    result_strategy: Strategy = Strategy.prefer_stormgateworld,
 ):
     """Automatically rename your replay files.
 
-    The first time you run this, you will be asked for your player_id (and your
-    replay directory if we can not find it automatically). These values are
-    then stored in the configuration file for future runs.
+    The first time you run this, you will be asked for your replay directory if
+    we can not find it automatically. This value is then stored in the
+    configuration file for future runs.
 
     To customize the naming of your replays, you can provide a python format
     string in the --format option, or (preferably) edit the format string in
@@ -173,20 +191,20 @@ def rename_replays(
     * build_number (int): Build number of Stormgate version on which the game was played (extracted from replay file)
     """
     from shroudstone import renamer
+
     config = Config.load()
     if replay_dir is None:
         replay_dir = get_replay_dir(config)
-    if my_player_id is None:
-        my_player_id = get_player_id(config)
     if clear_cache:
-        renamer.clear_cached_matches(my_player_id)
+        renamer.clear_cached_matches()
     renamer.rename_replays(
         replay_dir=replay_dir,
-        my_player_id=my_player_id,
         dry_run=dry_run,
         backup=backup,
         reprocess=reprocess,
         format=format or config.replay_name_format,
+        duration_strategy=duration_strategy,
+        result_strategy=result_strategy,
     )
 
 
@@ -206,6 +224,7 @@ def get_player_id(config: Config) -> str:
 
 def get_replay_dir(config: Config) -> Path:
     from shroudstone.renamer import guess_replay_dir
+
     if config.replay_dir is None:
         config.replay_dir = guess_replay_dir()
         if config.replay_dir is None:

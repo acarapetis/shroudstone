@@ -164,6 +164,8 @@ class SlotType(IntEnum):
 class Faction(IntEnum):
     vanguard = 0
     infernals = 1
+    blockade = 101
+    maloc = 201
 
 
 class AIType(IntEnum):

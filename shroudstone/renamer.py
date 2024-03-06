@@ -1,6 +1,8 @@
 """Rename stormgate replays to include useful info in filename"""
+from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 import os
 import string
 from pathlib import Path
@@ -14,9 +16,10 @@ from uuid import UUID
 from packaging import version
 
 import pandas as pd
+from pydantic import BaseModel
 
 from shroudstone import __version__
-from shroudstone.replay import summarize_replay
+from shroudstone.replay import Player, ReplaySummary, summarize_replay
 from shroudstone.config import data_dir
 from shroudstone.sgw_api import PlayersApi
 from shroudstone.stormgateworld.models import PlayerResponse
@@ -56,24 +59,44 @@ FIELDS = [
 def migrate():
     last_run_version_file = data_dir / "last_run_version.txt"
     if last_run_version_file.exists():
-        last_run_version = version.parse(last_run_version_file.read_text(encoding="utf-8"))
+        last_run_version = version.parse(
+            last_run_version_file.read_text(encoding="utf-8")
+        )
     else:
         last_run_version = version.parse("0.1.0a29")
     if last_run_version < version.parse("0.1.0a30"):
-        logger.info("Cache files are from an incompatible version of shroudstone, deleting them.")
+        logger.info(
+            "Cache files are from an incompatible version of shroudstone, deleting them."
+        )
         skipped_replays_file.unlink(missing_ok=True)
         rmtree(cache_dir)
     last_run_version_file.write_text(__version__, encoding="utf-8")
 
 
+class Strategy(Enum):
+    prefer_stormgateworld = "prefer-stormgateworld"
+    """Obtain from Stormgate World if available, otherwise determine from replay."""
+    always_stormgateworld = "always-stormgateworld"
+    """Obtain from Stormgate World if available, otherwise record Unknown."""
+    always_replay = "always-replay"
+    """Always determine from replay."""
+
+    def allows_stormgateworld(self):
+        return self == Strategy.prefer_stormgateworld or self == Strategy.always_stormgateworld
+
+    def __str__(self):
+        return self.value
+
+
 def rename_replays(
     replay_dir: Path,
-    my_player_id: str,
     format: str,
     dry_run: bool = False,
     backup: bool = True,
     reprocess: bool = False,
     files: Optional[Iterable[Path]] = None,
+    duration_strategy: Strategy = Strategy.prefer_stormgateworld,
+    result_strategy: Strategy = Strategy.prefer_stormgateworld,
 ):
     migrate()
     if dry_run:
@@ -101,7 +124,9 @@ def rename_replays(
 
         files = replay_dir.glob(pattern)
 
-    replays = [x for x in map(ReplayFile.from_path, files) if x is not None]
+    replays = [x for x in map(Replay.from_path, files) if x is not None]
+    our_uuids = {r.us.uuid for r in replays if r.us and r.us.uuid}
+    our_accounts = {uuid: get_player_by_uuid(uuid) for uuid in our_uuids}
     if not replays:
         logger.warning(
             "No new replays found to rename! "
@@ -112,18 +137,31 @@ def rename_replays(
     n = len(replays)
     earliest_time = min(x.time for x in replays)
     logger.info(f"Found {n} unrenamed replays going back to {earliest_time}.")
-    matches = get_player_matches(my_player_id)
+    if (
+        result_strategy != Strategy.always_replay
+        or duration_strategy != Strategy.always_replay
+    ):
+        ps = ", ".join(p.nickname for p in our_accounts.values() if p.nickname)
+        logger.info(f"Fetching Stormgate World match history for players: {ps}")
+        matches: dict[Optional[UUID], pd.DataFrame] = {
+            k: get_player_matches(v.id)
+            for k, v in our_accounts.items()
+        }
+    else:
+        matches = {}
     if not skipped_replays_file.exists():
         skipped_replays_file.touch()
     previously_skipped_paths = {
-        Path(x) for x in skipped_replays_file.read_text(encoding="utf-8").splitlines() if x
+        Path(x)
+        for x in skipped_replays_file.read_text(encoding="utf-8").splitlines()
+        if x
     }
     skipped_paths = []
 
     counts = defaultdict(lambda: 0)
     for r in replays:
         try:
-            match = find_match(matches, r)
+            inputs = gather_inputs(r, matches=matches.get(r.us and r.us.uuid, None))
         except MatchOngoing:
             logger.info(
                 f"Found match for {r.path.name}, but it's still marked as ongoing - we'll rename it later."
@@ -138,9 +176,10 @@ def rename_replays(
             else:
                 counts["skipped_new"] += 1
                 skipped_paths.append(r.path)
-                info = summarize_replay(r.path)
-                if len(info.players) == 1:
-                    nick = info.players[0].nickname
+                if any(p.is_ai for p in r.summary.players):
+                    logger.info(f"{r.path.name} is a game vs AI, skipping it.")
+                elif len(r.summary.players) == 1:
+                    nick = r.summary.players[0].nickname
                     logger.info(
                         f"No match found for {r.path.name}. Only one player was found ({nick})"
                         ", so this is probably a match vs AI."
@@ -148,11 +187,17 @@ def rename_replays(
                 else:
                     logger.warning(
                         f"No match found for {r.path.name} in stormgateworld match history."
-                        "Could be a custom game?"
+                        " Could be a custom game?"
                     )
         else:
             try:
-                rename_replay(r, match, dry_run=dry_run, format=format)
+                rename_replay(
+                    inputs,
+                    dry_run=dry_run,
+                    format=format,
+                    duration_strategy=duration_strategy,
+                    result_strategy=result_strategy,
+                )
                 counts["renamed"] += 1
             except Exception as e:
                 logger.error(f"Unexpected error handling {r.path}: {e}")
@@ -184,9 +229,12 @@ def naive_localtime_to_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc).replace(tzinfo=None)
 
 
-class ReplayFile(NamedTuple):
+class Replay(NamedTuple):
     path: Path
+    summary: ReplaySummary
     time: datetime
+    us: Optional[Player]
+    them: Optional[Player]
 
     @staticmethod
     def from_path(path: Path):
@@ -200,24 +248,40 @@ class ReplayFile(NamedTuple):
             time = datetime(*(int(x) for x in m.groups()))  # type: ignore
         else:
             return None
-        return ReplayFile(path, time)
+
+        summary = summarize_replay(path)
+        our_uuid = find_our_uuid(path)
+
+        us = None
+        them = None
+        if len(summary.players) == 2:
+            if summary.players[0].uuid == our_uuid:
+                us, them = summary.players
+            elif summary.players[1].uuid == our_uuid:
+                them, us = summary.players
+        elif len(summary.players) > 0 and summary.players[0].uuid == our_uuid:
+            us = summary.players[0]
+
+        return Replay(path=path, time=time, us=us, them=them, summary=summary)
 
 
 def get_player_by_uuid(uuid: UUID) -> PlayerResponse:
     uuid_dir.mkdir(exist_ok=True, parents=True)
     cache_file = uuid_dir / f"{uuid}.json"
     if cache_file.exists():
-        player = PlayerResponse.model_validate_json(cache_file.read_text(encoding="utf-8"))
+        player = PlayerResponse.model_validate_json(
+            cache_file.read_text(encoding="utf-8")
+        )
     else:
         player = PlayersApi.get_player(str(uuid))
         cache_file.write_text(player.model_dump_json(indent=2), encoding="utf-8")
     return player
 
 
-def clear_cached_matches(player_id: str):
+def clear_cached_matches():
     logger.info(f"Clearing local match cache.")
-    cache_file = cache_dir / f"{player_id}.csv"
-    cache_file.unlink(missing_ok=True)
+    for cache_file in cache_dir.glob("*.csv"):
+        cache_file.unlink(missing_ok=True)
 
 
 def load_cached_matches(player_id: str) -> Optional[pd.DataFrame]:
@@ -327,74 +391,138 @@ class MatchOngoing(Exception):
     pass
 
 
-def find_match(matches: pd.DataFrame, replay: ReplayFile):
-    """Given a replay file and a list of matches from stormgateworld, find the
-    closest match in time with the correct players."""
+class RenameInputs(BaseModel):
+    """All the data gathered together to rename a replay"""
+
+    replay: Replay
+    api_data: Optional[APIMatchData] = None
+
+
+class APIMatchData(BaseModel):
+    """Match data obtained from the stormgateworld API"""
+
+    result: str
+    duration: float
+
+    @staticmethod
+    def from_row(row: pd.Series):
+        return APIMatchData(result=row["us.result"], duration=row["duration"])
+
+
+def find_our_uuid(replay_path: Path) -> Optional[UUID]:
+    """Given the path to a Stormgate replay, extract the player UUID. (This
+    assumes it's stored in the usual directory heirarchy.)"""
+    for part in reversed(replay_path.parts):
+        try:
+            return UUID(hex=part)
+        except ValueError:
+            pass
+
+
+def gather_inputs(replay: Replay, matches: Optional[pd.DataFrame]) -> RenameInputs:
+    """Given a replay and a list of match records from stormgateworld, try to
+    find the match corresponding to the replay by comparing times and player
+    UUIDs, and gather all the data into a RenameInputs struct.
+
+    Raises MatchOngoing if match is found but still marked as ongoing on
+    stormgateworld. Raises NoMatch if the replay looks like a 1v1 ladder match
+    but could not be found on stormgateworld."""
+    result = RenameInputs(replay=replay)
+
+    if matches is None:
+        return result
+
     delta = (matches.created_at - replay.time).abs()
     df = matches.assign(delta=delta)
     candidates = df[delta < TOLERANCE].sort_values("delta")
+
     for _, match in candidates.iterrows():
         match_player_ids = {
             match.get("us.player.player_id"),
             match.get("them.player.player_id"),
         }
-        info = summarize_replay(replay.path)
-        replay_players = [get_player_by_uuid(p.uuid) for p in info.players]
+        replay_players = [
+            get_player_by_uuid(p.uuid)
+            for p in replay.summary.players
+            if p.uuid is not None
+        ]
 
         if match_player_ids == {p.id for p in replay_players}:
             if match["state"] == "ongoing":
                 raise MatchOngoing()
+            result.api_data = APIMatchData.from_row(match)
+            break
+    else:
+        if replay.summary.is_1v1_ladder_game:
+            raise NoMatch()
 
-            # Add extra data from replay before returning match
-            # TODO: Return this data in a more sensible class (or just a dict?)
-            match["map_name"] = info.map_name or "UnknownMap"
-            match["build_number"] = info.build_number
-            if replay_players[0].id == match["us.player.player_id"]:
-                us, them = info.players[0], info.players[1]
-            else:
-                us, them = info.players[1], info.players[0]
-            match["us.replay_nickname"] = us.nickname
-            match["them.replay_nickname"] = them.nickname
-
-            return match
-
-    raise NoMatch()
+    return result
 
 
-def rename_replay(replay: ReplayFile, match: pd.Series, dry_run: bool, format: str):
+def get_duration(inputs: RenameInputs, strategy: Strategy):
+    if strategy == Strategy.always_stormgateworld and inputs.api_data is None:
+        return None
+    elif strategy.allows_stormgateworld() and inputs.api_data is not None:
+        return inputs.api_data.duration
+    else:
+        return inputs.replay.summary.duration_seconds
+
+
+def get_result(inputs: RenameInputs, strategy: Strategy):
+    if strategy == Strategy.always_stormgateworld and inputs.api_data is None:
+        return None
+    elif strategy.allows_stormgateworld() and inputs.api_data is not None:
+        return inputs.api_data.result
+    else:
+        if not (inputs.replay.us and inputs.replay.them):
+            return None
+        t1 = inputs.replay.us.disconnect_time
+        t2 = inputs.replay.them.disconnect_time
+        if t1 and t2:
+            return "win" if t1 > t2 else "loss"
+        elif t1:
+            return "loss"
+        elif t2:
+            return "win"
+
+
+def rename_replay(
+    inputs: RenameInputs,
+    dry_run: bool,
+    format: str,
+    duration_strategy: Strategy = Strategy.prefer_stormgateworld,
+    result_strategy: Strategy = Strategy.prefer_stormgateworld,
+):
+    us = inputs.replay.us
+    them = inputs.replay.them
+    if not (us and them):
+        logger.warning(f"Replay {inputs.replay.path} is not 1v1, not using standard format.")
+        return
     parts = {}
-    parts["us"] = match["us.replay_nickname"]
-    parts["them"] = match["them.replay_nickname"]
+    parts["us"] = parts["p1"] = us.nickname
+    parts["them"] = parts["p2"] = them.nickname
 
-    try:
-        parts["r1"] = match["us.race"][0].capitalize()
-    except Exception:
-        parts["r1"] = "?"
+    parts["r1"] = (us.faction or "?").capitalize()
+    parts["r2"] = (them.faction or "?").capitalize()
 
-    try:
-        parts["r2"] = match["them.race"][0].capitalize()
-    except Exception:
-        parts["r2"] = "?"
+    parts["map_name"] = inputs.replay.summary.map_name
+    parts["build_number"] = inputs.replay.summary.build_number
 
-    try:
-        parts["result"] = match["us.result"].capitalize()
-    except Exception:
-        parts["result"] = "?"
+    result = get_result(inputs, result_strategy)
+    parts["result"] = (result or "unknown").capitalize()
 
-    parts["map_name"] = match["map_name"]
-    parts["build_number"] = match["build_number"]
-
-    try:
-        minutes, seconds = divmod(int(match["duration"]), 60)
+    duration = get_duration(inputs, duration_strategy)
+    if duration is not None:
+        minutes, seconds = divmod(int(duration), 60)
         parts["duration"] = f"{minutes:02d}m{seconds:02d}s"
-        parts["time"] = match["created_at"]
-    except Exception:
+    else:
         parts["duration"] = "??m??s"
-        parts["time"] = replay.time.strftime("")
+
+    parts["time"] = inputs.replay.time
 
     newname = format.format(**parts)
-    target = replay.path.parent / newname
-    do_rename(replay.path, target, dry_run=dry_run)
+    target = inputs.replay.path.parent / newname
+    do_rename(inputs.replay.path, target, dry_run=dry_run)
 
 
 def do_rename(source: Path, target: Path, dry_run: bool):
