@@ -299,7 +299,12 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     )
     load_config.pack(side="right", fill="both", padx=3, pady=3)
 
+    renaming = False
     def rename_replays():
+        nonlocal renaming
+        if renaming:
+            return
+        renaming = True
         rename_button.config(
             text="Renaming in progress - See console window",
             state="disabled",
@@ -310,6 +315,8 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
                 text="Rename My Replays Now",
                 state="normal",
             )
+            nonlocal renaming
+            renaming = False
 
         cfg.replay_dir = Path(state.replay_dir.get())
         cfg.replay_name_format_1v1 = state.replay_name_format_1v1.get()
@@ -323,6 +330,8 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
             format_generic=cfg.replay_name_format_generic,
             reprocess=state.reprocess.get(),
             dry_run=state.dry_run.get(),
+            duration_strategy=cfg.duration_strategy,
+            result_strategy=cfg.result_strategy,
         )
 
     options_frame = ttk.LabelFrame(root, text="Options")
