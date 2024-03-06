@@ -88,8 +88,8 @@ If you downloaded the .exe, just download a new one to replace it!
   using Python from the Microsoft Store, this %LOCALAPPDATA% might not be
   what you expect - use `python -m shroudstone config-path` to find out exactly
   where it is.
-- If using the CLI, Your player ID, replay directory path and replay format
-  string can be configured by passing command-line options to `python -m
+- If using the CLI, your replay directory path and replay format
+  strings can be configured by passing command-line options to `python -m
   shroudstone rename-replays`; but you probably want to use the config file
   instead so you don't have to provide them every time. Use `python -m
   shroudstone edit-config` to edit the configuration file.
@@ -98,13 +98,11 @@ If you downloaded the .exe, just download a new one to replace it!
 ## Customizing replay names
 
 You can customize the filenames of your renamed replays by editing the format
-string in your config file. (Use `python -m shroudstone edit-config` to open
-the config file in a text editor, or click the "Edit Config File" button in the
-GUI.)
+string in your configuration, either through the GUI or in your config file.
 
-The default format string is
+The default format string for 1v1 matches is
 
-     {time:%Y-%m-%d %H.%M} {result:.1} {duration} {us} {r1:.1}v{r2:.1} {them} - {map_name}.SGReplay
+     {time:%Y-%m-%d %H.%M} {result:.1} {duration} {us} {f1:.1}v{f2:.1} {them} - {map_name}.SGReplay
 
 which results in e.g.
 
@@ -112,15 +110,33 @@ which results in e.g.
 
 Note the usage of `:.1` to take just the first letter of the race and result strings.
 
-Format strings can use the following values:
+Format strings for 1v1 matches can use the following values:
 
 * `us` (str): Your nickname (as it appeared in the replay)
 * `them` (str): Opponent nickname (as it appeared in the replay)
-* `r1` (str): Race/faction you played (Vanguard or Infernals)
-* `r2` (str): Race/faction opponent played
+* `f1` (str): Faction/Race you played (Vanguard or Infernals or Maloc or Blockade)
+* `f2` (str): Faction/Race opponent played
 * `time` (datetime): Creation time of match
 * `duration` (str): Game duration (e.g. "15m10s")
 * `result` (str): Your game result (Win, Loss, Undecided)
+* `map_name` (str): Name of the map on which the game was played (extracted from replay file)
+* `build_number` (int): Build number of Stormgate version on which the game was played (extracted from replay file)
+
+For other matches (e.g. co-op), the default format string is
+
+      {time:%Y-%m-%d %H.%M} {duration} {players_with_factions} - {map_name}.SGReplay
+
+which results in e.g.
+
+      2024-02-03 01:23 20m10s Pox M, Alice B, Bob M - WreckHavoc.SGReplay
+
+Format strings for generic matches can use the following values:
+
+* `players` (str): Comma-separated list of player nicknames
+* `players_with_factions` (str): Comma-separated list of player nicknames, each
+  followed by the initial letter of their faction (e.g. M for Maloc)
+* `time` (datetime): Creation time of match
+* `duration` (str): Game duration (e.g. "15m10s")
 * `map_name` (str): Name of the map on which the game was played (extracted from replay file)
 * `build_number` (int): Build number of Stormgate version on which the game was played (extracted from replay file)
 

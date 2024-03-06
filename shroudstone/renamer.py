@@ -11,7 +11,8 @@ import re
 import logging
 from shutil import copytree, rmtree
 from time import sleep
-from typing import Iterable, NamedTuple, Optional
+from typing import Iterable, NamedTuple, Optional, Union
+from typing_extensions import Literal
 from uuid import UUID
 from packaging import version
 
@@ -43,17 +44,29 @@ skipped_replays_file = data_dir / "skipped_replays.txt"
 """Directory in which previouslyskipped replays are recorded"""
 
 
-FIELDS = [
-    "us",
-    "them",
-    "r1",
-    "r2",
-    "time",
-    "duration",
-    "result",
-    "map_name",
-    "build_number",
-]
+VALID_FIELDS = {
+    "1v1": [
+        "us",
+        "them",
+        "f1",
+        "f2",
+        "r1", # for backwards compat
+        "r2",
+        "time",
+        "duration",
+        "result",
+        "map_name",
+        "build_number",
+    ],
+    "generic": [
+        "players",
+        "players_with_factions",
+        "time",
+        "duration",
+        "map_name",
+        "build_number",
+    ]
+}
 
 
 def migrate():
@@ -82,7 +95,10 @@ class Strategy(Enum):
     """Always determine from replay."""
 
     def allows_stormgateworld(self):
-        return self == Strategy.prefer_stormgateworld or self == Strategy.always_stormgateworld
+        return (
+            self == Strategy.prefer_stormgateworld
+            or self == Strategy.always_stormgateworld
+        )
 
     def __str__(self):
         return self.value
@@ -90,7 +106,8 @@ class Strategy(Enum):
 
 def rename_replays(
     replay_dir: Path,
-    format: str,
+    format_1v1: str,
+    format_generic: str,
     dry_run: bool = False,
     backup: bool = True,
     reprocess: bool = False,
@@ -144,8 +161,7 @@ def rename_replays(
         ps = ", ".join(p.nickname for p in our_accounts.values() if p.nickname)
         logger.info(f"Fetching Stormgate World match history for players: {ps}")
         matches: dict[Optional[UUID], pd.DataFrame] = {
-            k: get_player_matches(v.id)
-            for k, v in our_accounts.items()
+            k: get_player_matches(v.id) for k, v in our_accounts.items()
         }
     else:
         matches = {}
@@ -194,7 +210,8 @@ def rename_replays(
                 rename_replay(
                     inputs,
                     dry_run=dry_run,
-                    format=format,
+                    format_1v1=format_1v1,
+                    format_generic=format_generic,
                     duration_strategy=duration_strategy,
                     result_strategy=result_strategy,
                 )
@@ -489,28 +506,14 @@ def get_result(inputs: RenameInputs, strategy: Strategy):
 def rename_replay(
     inputs: RenameInputs,
     dry_run: bool,
-    format: str,
+    format_1v1: str,
+    format_generic: str,
     duration_strategy: Strategy = Strategy.prefer_stormgateworld,
     result_strategy: Strategy = Strategy.prefer_stormgateworld,
 ):
-    us = inputs.replay.us
-    them = inputs.replay.them
-    if not (us and them):
-        logger.warning(f"Replay {inputs.replay.path} is not 1v1, not using standard format.")
-        return
     parts = {}
-    parts["us"] = parts["p1"] = us.nickname
-    parts["them"] = parts["p2"] = them.nickname
-
-    parts["r1"] = (us.faction or "?").capitalize()
-    parts["r2"] = (them.faction or "?").capitalize()
-
     parts["map_name"] = inputs.replay.summary.map_name
     parts["build_number"] = inputs.replay.summary.build_number
-
-    result = get_result(inputs, result_strategy)
-    parts["result"] = (result or "unknown").capitalize()
-
     duration = get_duration(inputs, duration_strategy)
     if duration is not None:
         minutes, seconds = divmod(int(duration), 60)
@@ -520,7 +523,28 @@ def rename_replay(
 
     parts["time"] = inputs.replay.time
 
-    newname = format.format(**parts)
+    us = inputs.replay.us
+    them = inputs.replay.them
+    if us and them:
+        parts["us"] = parts["p1"] = us.nickname
+        parts["them"] = parts["p2"] = them.nickname
+
+        parts["r1"] = parts["f1"] = (us.faction or "?").capitalize()
+        parts["r2"] = parts["f2"] = (them.faction or "?").capitalize()
+
+        result = get_result(inputs, result_strategy)
+        parts["result"] = (result or "unknown").capitalize()
+
+        newname = format_1v1.format(**parts)
+    else:
+        parts["players"] = ", ".join(
+            p.nickname.capitalize() for p in inputs.replay.summary.players
+        )
+        parts["players_with_factions"] = ", ".join(
+            f"{p.nickname.capitalize()} {(p.faction or '?').upper():.1}" for p in inputs.replay.summary.players
+        )
+        newname = format_generic.format(**parts)
+
     target = inputs.replay.path.parent / newname
     do_rename(inputs.replay.path, target, dry_run=dry_run)
 
@@ -609,8 +633,8 @@ def guess_player(replay_dir: Path) -> Optional[PlayerResponse]:
         return None
 
 
-def validate_format_string(format: str):
+def validate_format_string(format: str, type: Union[Literal["1v1"], Literal["generic"]]):
     parts = string.Formatter().parse(format)
     for _, field_name, _, _ in parts:
-        if field_name is not None and field_name not in FIELDS:
+        if field_name is not None and field_name not in VALID_FIELDS[type]:
             raise ValueError(f"Unknown replay field {field_name}")

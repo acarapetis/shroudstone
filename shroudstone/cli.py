@@ -15,7 +15,7 @@ from typing_extensions import Annotated
 import typer
 
 from shroudstone import __version__
-from shroudstone.config import Config, config_file, DEFAULT_FORMAT
+from shroudstone.config import DEFAULT_GENERIC_FORMAT, Config, config_file, DEFAULT_1v1_FORMAT
 from shroudstone.logging import configure_logging
 from shroudstone.renamer import Strategy
 
@@ -148,10 +148,16 @@ def rename_replays(
         Optional[Path],
         typer.Option(file_okay=False, dir_okay=True, exists=True, readable=True),
     ] = None,
-    format: Annotated[
+    format_1v1: Annotated[
         Optional[str],
         typer.Option(
-            help=f"Format string for new replay filenames\n(e.g. '{DEFAULT_FORMAT}')"
+            help=f"Format string for 1v1 replays \n(e.g. '{DEFAULT_1v1_FORMAT}')"
+        ),
+    ] = None,
+    format_generic: Annotated[
+        Optional[str],
+        typer.Option(
+            help=f"Format string for other replays \n(e.g. '{DEFAULT_GENERIC_FORMAT}')"
         ),
     ] = None,
     backup: bool = True,
@@ -182,8 +188,8 @@ def rename_replays(
 
     * us: Your nickname (as it appeared in the replay)
     * them: Opponent nickname (as it appeared in the replay)
-    * r1: Race/faction you played (Vanguard or Infernals)
-    * r2: Race/faction opponent played
+    * f1: Faction/Race you played (Vanguard or Infernals or Maloc or Blockade)
+    * f2: Faction/Race opponent played
     * time (datetime): Creation time of match
     * duration: Game duration (e.g. "15m10s")
     * result: Your game result (Win, Loss, Undecided)
@@ -202,24 +208,11 @@ def rename_replays(
         dry_run=dry_run,
         backup=backup,
         reprocess=reprocess,
-        format=format or config.replay_name_format,
+        format_1v1=format_1v1 or config.replay_name_format_1v1,
+        format_generic=format_generic or config.replay_name_format_generic,
         duration_strategy=duration_strategy,
         result_strategy=result_strategy,
     )
-
-
-def get_player_id(config: Config) -> str:
-    if config.my_player_id is None:
-        typer.echo(
-            "You have not yet configured your Stormgate World player ID. To find it:\n"
-            "1. visit https://stormgateworld.com/leaderboards/ranked_1v1 and search for your in-game nickname.\n"
-            "2. find your account in the results and click on it.\n"
-            "3. click the characters next to the '#' icon to copy your player ID.\n"
-            "4. paste it below and press enter :)"
-        )
-        config.my_player_id = typer.prompt("Player ID")
-    config.save()
-    return config.my_player_id
 
 
 def get_replay_dir(config: Config) -> Path:
