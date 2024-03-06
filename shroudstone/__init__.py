@@ -1,3 +1,3 @@
 """Python utilities for working with Stormgate replays"""
 
-__version__ = "0.1.0a32"
+__version__ = "0.1.0a33"

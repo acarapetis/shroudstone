@@ -501,7 +501,7 @@ def rename_replay(
         minutes, seconds = divmod(int(duration), 60)
         parts["duration"] = f"{minutes:02d}m{seconds:02d}s"
     else:
-        parts["duration"] = "??m??s"
+        parts["duration"] = ""
 
     parts["time"] = inputs.replay.time
 
@@ -511,8 +511,8 @@ def rename_replay(
         parts["us"] = parts["p1"] = us.nickname
         parts["them"] = parts["p2"] = them.nickname
 
-        parts["r1"] = parts["f1"] = (us.faction or "?").capitalize()
-        parts["r2"] = parts["f2"] = (them.faction or "?").capitalize()
+        parts["r1"] = parts["f1"] = (us.faction or "").capitalize()
+        parts["r2"] = parts["f2"] = (them.faction or "").capitalize()
 
         result = get_result(inputs, result_strategy)
         parts["result"] = (result or "unknown").capitalize()
@@ -523,9 +523,12 @@ def rename_replay(
             p.nickname.capitalize() for p in inputs.replay.summary.players
         )
         parts["players_with_factions"] = ", ".join(
-            f"{p.nickname.capitalize()} {(p.faction or '?').upper():.1}" for p in inputs.replay.summary.players
+            f"{p.nickname.capitalize()} {(p.faction or '').upper():.1}" for p in inputs.replay.summary.players
         )
         newname = format_generic.format(**parts)
+
+    # In case we left some blanks, collapse multiple spaces to one space
+    newname = re.sub(r"\s+", " ", newname)
 
     target = inputs.replay.path.parent / newname
     do_rename(inputs.replay.path, target, dry_run=dry_run)
