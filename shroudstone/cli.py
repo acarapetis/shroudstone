@@ -15,9 +15,8 @@ from typing_extensions import Annotated
 import typer
 
 from shroudstone import __version__
-from shroudstone.config import DEFAULT_GENERIC_FORMAT, Config, config_file, DEFAULT_1v1_FORMAT
+from shroudstone.config import DEFAULT_GENERIC_FORMAT, Config, config_file, DEFAULT_1v1_FORMAT, Strategy
 from shroudstone.logging import configure_logging
-from shroudstone.renamer import Strategy
 
 app = typer.Typer(rich_markup_mode="rich", help=sys.modules[__name__].__doc__)
 

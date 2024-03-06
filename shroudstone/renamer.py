@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from shroudstone import __version__
 from shroudstone.replay import Player, ReplaySummary, summarize_replay
-from shroudstone.config import data_dir
+from shroudstone.config import Strategy, data_dir
 from shroudstone.sgw_api import PlayersApi
 from shroudstone.stormgateworld.models import PlayerResponse
 
@@ -84,24 +84,6 @@ def migrate():
         skipped_replays_file.unlink(missing_ok=True)
         rmtree(cache_dir)
     last_run_version_file.write_text(__version__, encoding="utf-8")
-
-
-class Strategy(Enum):
-    prefer_stormgateworld = "prefer-stormgateworld"
-    """Obtain from Stormgate World if available, otherwise determine from replay."""
-    always_stormgateworld = "always-stormgateworld"
-    """Obtain from Stormgate World if available, otherwise record Unknown."""
-    always_replay = "always-replay"
-    """Always determine from replay."""
-
-    def allows_stormgateworld(self):
-        return (
-            self == Strategy.prefer_stormgateworld
-            or self == Strategy.always_stormgateworld
-        )
-
-    def __str__(self):
-        return self.value
 
 
 def rename_replays(

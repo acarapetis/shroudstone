@@ -1,4 +1,5 @@
 """Persistent configuration stored in standard user data directories"""
+from enum import Enum
 import os
 import platform
 import yaml
@@ -26,10 +27,32 @@ DEFAULT_1v1_FORMAT = "{time:%Y-%m-%d %H.%M} {result:.1} {duration} {us} {f1:.1}v
 DEFAULT_GENERIC_FORMAT = "{time:%Y-%m-%d %H.%M} {duration} {players_with_factions} - {map_name}.SGReplay"
 """Default format string for new 1v1 replay filenames"""
 
+
+class Strategy(Enum):
+    prefer_stormgateworld = "prefer_stormgateworld"
+    """Obtain from Stormgate World if available, otherwise determine from replay."""
+    always_stormgateworld = "always_stormgateworld"
+    """Obtain from Stormgate World if available, otherwise record Unknown."""
+    always_replay = "always_replay"
+    """Always determine from replay."""
+
+    def allows_stormgateworld(self):
+        return (
+            self == Strategy.prefer_stormgateworld
+            or self == Strategy.always_stormgateworld
+        )
+
+    def __str__(self):
+        return self.value
+
+
+
 class Config(BaseModel):
     replay_dir: Optional[Path] = None
     replay_name_format_1v1: str = DEFAULT_1v1_FORMAT
     replay_name_format_generic: str = DEFAULT_GENERIC_FORMAT
+    duration_strategy: Strategy = Strategy.prefer_stormgateworld
+    result_strategy: Strategy = Strategy.prefer_stormgateworld
 
     @staticmethod
     def load():

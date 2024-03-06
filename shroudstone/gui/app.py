@@ -36,6 +36,8 @@ class AppState:
     replay_dir: StringVar = field(StringVar)
     replay_name_format_1v1: StringVar = field(StringVar)
     replay_name_format_generic: StringVar = field(StringVar)
+    duration_strategy: StringVar = field(StringVar)
+    result_strategy: StringVar = field(StringVar)
     reprocess: BoolVar = field(BoolVar)
     dry_run: BoolVar = field(BoolVar)
     autorename: BoolVar = field(BoolVar)
@@ -124,6 +126,11 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
         state.replay_dir.set(str(cfg.replay_dir or ""))
         state.replay_name_format_1v1.set(cfg.replay_name_format_1v1)
         state.replay_name_format_generic.set(cfg.replay_name_format_generic)
+        state.duration_strategy.set(cfg.duration_strategy.value)
+        state.result_strategy.set(cfg.result_strategy.value)
+
+    def save_config():
+        cfg.save()
 
     root.title("Shroudstone - Stormgate Replay Renamer")
 
@@ -176,13 +183,13 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
         if path.is_dir():
             replay_dir_error.configure(text="Looks good!", background="#66ff66")
             cfg.replay_dir = path
-            save_config.configure(state="normal")
+            save_config_button.configure(state="normal")
             rename_button.configure(state="normal")
         else:
             replay_dir_error.configure(
                 text="Directory does not exist!", background="#ff6666"
             )
-            save_config.configure(state="disabled")
+            save_config_button.configure(state="disabled")
             rename_button.configure(state="disabled")
 
     @state.replay_name_format_1v1.on_change
@@ -192,12 +199,12 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
             renamer.validate_format_string(fstr, type="1v1")
         except ValueError as e:
             format_error_1v1.configure(text=f"Error: {e}", background="#ff6666")
-            save_config.configure(state="disabled")
+            save_config_button.configure(state="disabled")
             rename_button.configure(state="disabled")
         else:
             format_error_1v1.configure(text="Looks good!", background="#66ff66")
             cfg.replay_name_format_1v1 = fstr
-            save_config.configure(state="normal")
+            save_config_button.configure(state="normal")
             rename_button.configure(state="normal")
 
     @state.replay_name_format_generic.on_change
@@ -207,12 +214,12 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
             renamer.validate_format_string(fstr, type="generic")
         except ValueError as e:
             format_error_generic.configure(text=f"Error: {e}", background="#ff6666")
-            save_config.configure(state="disabled")
+            save_config_button.configure(state="disabled")
             rename_button.configure(state="disabled")
         else:
             format_error_generic.configure(text="Looks good!", background="#66ff66")
             cfg.replay_name_format_generic = fstr
-            save_config.configure(state="normal")
+            save_config_button.configure(state="normal")
             rename_button.configure(state="normal")
 
     ttk.Label(form, text="New Filename Format (1v1)", justify="right").grid(
@@ -239,11 +246,53 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     format_error_generic = ttk.Label(form)
     format_error_generic.grid(row=6, column=1, sticky="WE", ipadx=5, ipady=5)
 
+    result_frame = ttk.LabelFrame(config_frame, text="How to determine game result")
+    result_frame.pack(fill="x")
+    ttk.Radiobutton(
+        result_frame,
+        variable=state.result_strategy,
+        value="prefer_stormgateworld",
+        text="Prefer Stormgate World, fall back to replay",
+    ).pack(side="left", padx=5, pady=5)
+    ttk.Radiobutton(
+        result_frame,
+        variable=state.result_strategy,
+        value="always_stormgateworld",
+        text="Stormgate World only",
+    ).pack(side="left", padx=5, pady=5)
+    ttk.Radiobutton(
+        result_frame,
+        variable=state.result_strategy,
+        value="always_replay",
+        text="Replay only (incorrect in elimination scenarios!)",
+    ).pack(side="left", padx=5, pady=5)
+
+    duration_frame = ttk.LabelFrame(config_frame, text="How to determine game duration")
+    duration_frame.pack(fill="x")
+    ttk.Radiobutton(
+        duration_frame,
+        variable=state.duration_strategy,
+        value="prefer_stormgateworld",
+        text="Prefer Stormgate World, fall back to replay",
+    ).pack(side="left", padx=5, pady=5)
+    ttk.Radiobutton(
+        duration_frame,
+        variable=state.duration_strategy,
+        value="always_stormgateworld",
+        text="Stormgate World only (slightly inaccurate!)",
+    ).pack(side="left", padx=5, pady=5)
+    ttk.Radiobutton(
+        duration_frame,
+        variable=state.duration_strategy,
+        value="always_replay",
+        text="Replay only (incorrect in elimination scenarios!)",
+    ).pack(side="left", padx=5, pady=5)
+
     config_buttons = ttk.Frame(config_frame)
     config_buttons.pack(fill="x")
 
-    save_config = ttk.Button(config_buttons, text="Save Config", command=cfg.save)
-    save_config.pack(side="right", fill="both", padx=3, pady=3)
+    save_config_button = ttk.Button(config_buttons, text="Save Config", command=save_config)
+    save_config_button.pack(side="right", fill="both", padx=3, pady=3)
 
     load_config = ttk.Button(
         config_buttons, text="Reload Config", command=reload_config
@@ -323,8 +372,16 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
             doit()
 
     @state.replay_dir.on_change
-    def _(*args):
+    def _(*_):
         cfg.replay_dir = Path(state.replay_dir.get())
+
+    @state.duration_strategy.on_change
+    def _(*_):
+        cfg.duration_strategy = config.Strategy(state.duration_strategy.get())
+
+    @state.result_strategy.on_change
+    def _(*_):
+        cfg.result_strategy = config.Strategy(state.result_strategy.get())
 
     reload_config()
     root.mainloop()
