@@ -2,10 +2,15 @@ import dataclasses
 from functools import partial
 from pathlib import Path
 import platform
+from threading import Thread, Event, get_ident
+from typing import Optional
+from pystray import Icon, Menu, MenuItem
+from pystray._base import Icon as BaseIcon
+from PIL import Image
 import tkinter as tk
 from tkinter import ttk
 from tkinter.filedialog import askdirectory
-from tkinter.messagebox import showinfo, showwarning
+from tkinter.messagebox import showinfo, showwarning, askyesno
 from tkinter.font import families, nametofont
 
 from shroudstone import config, renamer
@@ -15,6 +20,7 @@ from .jobs import TkWithJobs
 import logging
 
 logger = logging.getLogger(__name__)
+assets_dir = Path(__file__).parent / "assets"
 
 
 class StringVar(tk.StringVar):
@@ -41,6 +47,101 @@ class AppState:
     reprocess: BoolVar = field(BoolVar)
     dry_run: BoolVar = field(BoolVar)
     autorename: BoolVar = field(BoolVar)
+    minimize_to_tray: BoolVar = field(BoolVar)
+
+
+class App(TkWithJobs):
+    systray_icon: Optional[BaseIcon] = None
+    systray_thread: Optional[Thread] = None
+    tray_quit_event: Event
+    vars: AppState
+
+    def quit_app(self):
+        logger.debug(f"Running quit_app in {get_ident()}")
+        if self.systray_thread:
+            logger.debug("Joining tray icon thread")
+            self.systray_thread.join()
+        logger.debug("Destroying main Tk app")
+        self.destroy()
+
+    def on_close(self):
+        if self.systray_icon and self.vars.minimize_to_tray.get():
+            self.withdraw()
+        else:
+            if (not self.vars.autorename.get()) or askyesno(
+                title="Shroudstone - Quit?",
+                message="You have autorenaming enabled, which will stop functioning "
+                "if you quit. Are you sure you want to quit?",
+            ):
+                # Ask the tray icon to quit
+                if self.systray_icon is not None:
+                    self.systray_icon.stop()
+                    # When it's done cleaning up, tray_quit_event will be set,
+                    # so no further action required
+                else:
+                    self.quit_app()
+
+    def setup_tray_icon(self):
+        self.systray_thread = Thread(target=self._tray_icon_thread)
+        self.systray_thread.start()
+
+    def _tray_icon_thread(self):
+        state = self.vars
+        def toggle_autorename():
+            state.autorename.set(not state.autorename.get())
+
+        def show():
+            self.deiconify()
+            self.wm_state("normal")
+            self.tkraise()
+
+        def hide():
+            self.withdraw()
+
+        image = Image.open(assets_dir / "shroudstone.png")
+        menu = Menu(
+            MenuItem("Show", show, default=True),
+            MenuItem("Minimize to tray", hide),
+            MenuItem(
+                "Auto-renaming",
+                toggle_autorename,
+                checked=lambda item: state.autorename.get(),
+            ),
+            MenuItem("Quit", lambda: icon.stop()),
+        )
+        icon = self.systray_icon = Icon(
+            name="Shroudstone",
+            icon=image,
+            title="Shroudstone: Stormgate Replay Renamer",
+            menu=menu,
+        )
+
+        @state.autorename.on_change
+        def _(*_):
+            icon.update_menu()
+
+        logger.debug(f"icon.run() in thread {get_ident()}")
+        icon.run()
+        logger.debug("icon.run done")
+        self.tray_quit_event.set()
+
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vars = AppState()
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+        logger.debug(f"Main thread is {get_ident()}")
+
+        # The systray icon passes this message back from its thread when it's done:
+        self.tray_quit_event = Event()
+        def _check_quit_event():
+            if self.tray_quit_event.is_set():
+                self.quit_app()
+            self.after(10, _check_quit_event)
+        _check_quit_event()
+
+        self.setup_tray_icon()
 
 
 def run():
@@ -51,17 +152,16 @@ def run():
     )
     cfg: config.Config = config.Config.load()
 
-    root = TkWithJobs()
-    setup_icon(root)
-    state = AppState()
+    root = App(className="Shroudstone")
+    setup_window_icon(root)
     setup_style()
 
     if cfg.replay_dir is None:
-        configure_replay_dir(root, state, cfg)
-        cfg.replay_dir = Path(state.replay_dir.get())
+        configure_replay_dir(root, root.vars, cfg)
+        cfg.replay_dir = Path(root.vars.replay_dir.get())
         cfg.save()
 
-    main_ui(root, state, cfg)
+    create_main_ui(root, cfg)
     root.mainloop()
 
 
@@ -80,8 +180,7 @@ def setup_style():
     nametofont("TkDefaultFont").configure(family=sans)
 
 
-def setup_icon(root: tk.Tk):
-    assets_dir = Path(__file__).parent / "assets"
+def setup_window_icon(root: tk.Tk):
     if platform.system() == "Windows":
         # TODO: This .ico currently only has a 64x64px image in it, which looks
         # garbage when resized down to fit in window titlebars etc.
@@ -92,6 +191,7 @@ def setup_icon(root: tk.Tk):
 
 
 def configure_replay_dir(root: TkWithJobs, state: AppState, cfg: config.Config):
+    root.withdraw()  # Hide uninitialized main window while we show initial popups
     cfg.replay_dir = renamer.guess_replay_dir()
     if cfg.replay_dir is None:
         state.replay_dir.set("")
@@ -107,6 +207,7 @@ def configure_replay_dir(root: TkWithJobs, state: AppState, cfg: config.Config):
             message=f"Detected your replay directory as {cfg.replay_dir}."
             " If this is incorrect, please configure it manually on the next screen.",
         )
+    root.deiconify()
 
 
 def rename_replays_wrapper(*args, **kwargs):
@@ -119,7 +220,8 @@ def rename_replays_wrapper(*args, **kwargs):
         )
 
 
-def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
+def create_main_ui(root: App, cfg: config.Config):
+    state = root.vars
     def reload_config():
         nonlocal cfg
         cfg = config.Config.load()
@@ -128,6 +230,7 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
         state.replay_name_format_generic.set(cfg.replay_name_format_generic)
         state.duration_strategy.set(cfg.duration_strategy.value)
         state.result_strategy.set(cfg.result_strategy.value)
+        state.minimize_to_tray.set(cfg.minimize_to_tray)
 
     def save_config():
         cfg.save()
@@ -247,7 +350,7 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     format_error_generic.grid(row=6, column=1, sticky="WE", ipadx=5, ipady=5)
 
     result_frame = ttk.LabelFrame(config_frame, text="How to determine game result")
-    result_frame.pack(fill="x")
+    result_frame.pack(fill="x", padx=5, pady=5)
     ttk.Radiobutton(
         result_frame,
         variable=state.result_strategy,
@@ -268,7 +371,7 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     ).pack(side="left", padx=5, pady=5)
 
     duration_frame = ttk.LabelFrame(config_frame, text="How to determine game duration")
-    duration_frame.pack(fill="x")
+    duration_frame.pack(fill="x", padx=5, pady=5)
     ttk.Radiobutton(
         duration_frame,
         variable=state.duration_strategy,
@@ -291,7 +394,9 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     config_buttons = ttk.Frame(config_frame)
     config_buttons.pack(fill="x")
 
-    save_config_button = ttk.Button(config_buttons, text="Save Config", command=save_config)
+    save_config_button = ttk.Button(
+        config_buttons, text="Save Config", command=save_config
+    )
     save_config_button.pack(side="right", fill="both", padx=3, pady=3)
 
     load_config = ttk.Button(
@@ -358,10 +463,12 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
 
     rename_button.pack(fill="x")
 
-    autorename_cb = ttk.Checkbutton(
-        root, text="Automatically rename new replays", variable=state.autorename
-    )
-    autorename_cb.pack(padx=5, pady=5)
+    gui_toggles = ttk.Frame(root)
+    gui_toggles.pack(fill="x")
+
+    ttk.Checkbutton(
+        gui_toggles, text="Automatically rename new replays", variable=state.autorename
+    ).pack(side="left", padx=5, pady=5)
 
     autorename_ref = None
 
@@ -380,6 +487,10 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
 
             doit()
 
+    ttk.Checkbutton(
+        gui_toggles, text="Minimize to tray on close", variable=state.minimize_to_tray
+    ).pack(side="left", padx=5, pady=5)
+
     @state.replay_dir.on_change
     def _(*_):
         cfg.replay_dir = Path(state.replay_dir.get())
@@ -392,5 +503,8 @@ def main_ui(root: TkWithJobs, state: AppState, cfg: config.Config):
     def _(*_):
         cfg.result_strategy = config.Strategy(state.result_strategy.get())
 
+    @state.minimize_to_tray.on_change
+    def _(*_):
+        cfg.minimize_to_tray = state.minimize_to_tray.get()
+
     reload_config()
-    root.mainloop()

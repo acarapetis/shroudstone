@@ -16,7 +16,7 @@ def _platform_data_dir() -> Path:
         xdg_data_home = os.environ.get("XDG_DATA_HOME")
         if xdg_data_home:
             return Path(xdg_data_home)
-        return Path("~").expanduser() / ".local" / "share"
+        return Path.home() / ".local" / "share"
 
 
 data_dir = _platform_data_dir() / "shroudstone"
@@ -53,6 +53,7 @@ class Config(BaseModel):
     replay_name_format_generic: str = DEFAULT_GENERIC_FORMAT
     duration_strategy: Strategy = Strategy.prefer_stormgateworld
     result_strategy: Strategy = Strategy.prefer_stormgateworld
+    minimize_to_tray: bool = True
 
     @staticmethod
     def load():

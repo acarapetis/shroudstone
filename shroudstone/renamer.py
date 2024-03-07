@@ -576,7 +576,7 @@ def guess_replay_dir() -> Optional[Path]:
         # If this script is running on Linux and Stormgate is installed using
         # Steam+Proton, look in the steam compatdata:
         steammnt = (
-            Path("~").expanduser()
+            Path.home()
             / ".steam/root/steamapps/compatdata/2012510/pfx/dosdevices"
         )
 

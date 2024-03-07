@@ -14,6 +14,6 @@ def configure_logging(debug: bool = False):
         logging.captureWarnings(True)
         logging.basicConfig(
             level=level,
-            format="%(message)s",
+            format="%(name)s: %(message)s" if debug else "%(message)s",
             handlers=[RichHandler(console=console, show_path=False, show_time=False)],
         )
