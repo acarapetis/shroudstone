@@ -1,7 +1,7 @@
 pyinstaller ^
     --name shroudstone ^
     --onefile ^
-    --console ^
+    --noconsole ^
     --collect-all shroudstone ^
     --icon shroudstone\gui\assets\shroudstone.ico ^
     shroudstone\__main__.py

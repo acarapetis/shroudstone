@@ -11,9 +11,11 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter.filedialog import askdirectory
 from tkinter.messagebox import showinfo, showwarning, askyesno
-from tkinter.font import families, nametofont
+from tkinter.font import Font, families, nametofont
 
 from shroudstone import config, renamer
+from shroudstone.gui.fonts import setup_style
+from shroudstone.gui.logview import LogView
 from shroudstone.logging import configure_logging
 from .jobs import TkWithJobs
 
@@ -48,6 +50,7 @@ class AppState:
     dry_run: BoolVar = field(BoolVar)
     autorename: BoolVar = field(BoolVar)
     minimize_to_tray: BoolVar = field(BoolVar)
+    show_log_on_autorename: BoolVar = field(BoolVar)
 
 
 class App(TkWithJobs):
@@ -64,22 +67,26 @@ class App(TkWithJobs):
         logger.debug("Destroying main Tk app")
         self.destroy()
 
-    def on_close(self):
+    def on_window_close(self):
         if self.systray_icon and self.vars.minimize_to_tray.get():
             self.withdraw()
         else:
-            if (not self.vars.autorename.get()) or askyesno(
-                title="Shroudstone - Quit?",
-                message="You have autorenaming enabled, which will stop functioning "
-                "if you quit. Are you sure you want to quit?",
-            ):
-                # Ask the tray icon to quit
-                if self.systray_icon is not None:
-                    self.systray_icon.stop()
-                    # When it's done cleaning up, tray_quit_event will be set,
-                    # so no further action required
-                else:
-                    self.quit_app()
+            self.request_exit()
+
+    def request_exit(self):
+        if (not self.vars.autorename.get()) or askyesno(
+            title="Shroudstone - Exit?",
+            message="You have autorenaming enabled, which will stop functioning if you exit the program.\n"
+            "Consider enabling 'Minimize to tray' if you want to keep auto-renaming without this window open.\n\n"
+            "Are you sure you want to exit?\n"
+        ):
+            # Ask the tray icon to quit
+            if self.systray_icon is not None:
+                self.systray_icon.stop()
+                # When it's done cleaning up, tray_quit_event will be set,
+                # so no further action required
+            else:
+                self.quit_app()
 
     def setup_tray_icon(self):
         self.systray_thread = Thread(target=self._tray_icon_thread)
@@ -130,7 +137,7 @@ class App(TkWithJobs):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.vars = AppState()
-        self.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.protocol("WM_DELETE_WINDOW", self.on_window_close)
         logger.debug(f"Main thread is {get_ident()}")
 
         # The systray icon passes this message back from its thread when it's done:
@@ -153,8 +160,8 @@ def run():
     cfg: config.Config = config.Config.load()
 
     root = App(className="Shroudstone")
+    setup_style(root)
     setup_window_icon(root)
-    setup_style()
 
     if cfg.replay_dir is None:
         configure_replay_dir(root, root.vars, cfg)
@@ -163,21 +170,6 @@ def run():
 
     create_main_ui(root, cfg)
     root.mainloop()
-
-
-def first_available_font(*names) -> str:
-    fonts = families()
-    for name in names:
-        if name in fonts:
-            return name
-    return "times"
-
-
-def setup_style():
-    sans = first_available_font(
-        "Ubuntu", "DejaVu Sans", "Sans", "Segoe UI", "Helvetica"
-    )
-    nametofont("TkDefaultFont").configure(family=sans)
 
 
 def setup_window_icon(root: tk.Tk):
@@ -231,6 +223,7 @@ def create_main_ui(root: App, cfg: config.Config):
         state.duration_strategy.set(cfg.duration_strategy.value)
         state.result_strategy.set(cfg.result_strategy.value)
         state.minimize_to_tray.set(cfg.minimize_to_tray)
+        state.show_log_on_autorename.set(cfg.show_log_on_autorename)
 
     def save_config():
         cfg.save()
@@ -405,15 +398,17 @@ def create_main_ui(root: App, cfg: config.Config):
     load_config.pack(side="right", fill="both", padx=3, pady=3)
 
     renaming = False
-    def rename_replays():
+    def rename_replays(auto: bool = False):
         nonlocal renaming
         if renaming:
             return
         renaming = True
-        rename_button.config(
-            text="Renaming in progress - See console window",
-            state="disabled",
-        )
+        show_log = state.show_log_on_autorename.get() or not auto
+        btn_text = "Renaming in progress"
+        if show_log:
+            btn_text += " - See log window"
+            log_view.deiconify()
+        rename_button.config(text=btn_text, state="disabled")
 
         def callback(_):
             rename_button.config(
@@ -482,7 +477,7 @@ def create_main_ui(root: App, cfg: config.Config):
 
             def doit():
                 nonlocal autorename_ref
-                rename_replays()
+                rename_replays(auto=True)
                 autorename_ref = root.after(30000, doit)
 
             doit()
@@ -490,6 +485,12 @@ def create_main_ui(root: App, cfg: config.Config):
     ttk.Checkbutton(
         gui_toggles, text="Minimize to tray on close", variable=state.minimize_to_tray
     ).pack(side="left", padx=5, pady=5)
+
+    ttk.Checkbutton(
+        gui_toggles, text="Show Log when auto-renaming", variable=state.show_log_on_autorename
+    ).pack(side="left", padx=5, pady=5)
+
+    ttk.Button(gui_toggles, text="Exit", command=root.request_exit).pack(side="right", padx=5, pady=5)
 
     @state.replay_dir.on_change
     def _(*_):
@@ -508,3 +509,7 @@ def create_main_ui(root: App, cfg: config.Config):
         cfg.minimize_to_tray = state.minimize_to_tray.get()
 
     reload_config()
+
+    log_view = LogView(root)
+    log_view.withdraw()
+    log_view.protocol("WM_DELETE_WINDOW", log_view.clear_and_close)

@@ -123,7 +123,13 @@ def rename_replays(
 
         files = replay_dir.glob(pattern)
 
-    replays = [x for x in map(Replay.from_path, files) if x is not None]
+    def try_parse(path: Path):
+        try:
+            return Replay.from_path(path)
+        except Exception:
+            logger.exception(f"Unexpected error parsing {path}")
+
+    replays = [x for x in map(try_parse, files) if x is not None]
     our_uuids = {r.us.uuid for r in replays if r.us and r.us.uuid}
     our_accounts = {uuid: get_player_by_uuid(uuid) for uuid in our_uuids}
     if not replays:

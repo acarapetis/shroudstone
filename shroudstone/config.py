@@ -53,7 +53,8 @@ class Config(BaseModel):
     replay_name_format_generic: str = DEFAULT_GENERIC_FORMAT
     duration_strategy: Strategy = Strategy.prefer_stormgateworld
     result_strategy: Strategy = Strategy.prefer_stormgateworld
-    minimize_to_tray: bool = True
+    minimize_to_tray: bool = False
+    show_log_on_autorename: bool = False
 
     @staticmethod
     def load():
