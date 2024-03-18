@@ -88,6 +88,7 @@ def migrate():
         config = Config.load()
         config.duration_strategy = Strategy.always_replay
         config.result_strategy = Strategy.always_replay
+        config.save()
     last_run_version_file.write_text(__version__, encoding="utf-8")
 
 
