@@ -256,10 +256,10 @@ class GameState(BaseModel):
         if self.game_started:
             self.clients[client_id].left_game_time = timestamp
         else:
-            client = self.clients.pop(client_id)
-            logger.debug(
-                f"Removing player {client_id}: {client.nickname} {client.uuid}"
-            )
+            client = self.clients.pop(client_id, None)
+            # In aborted ladder games, we sometimes get a left game before the player joined message
+            suffix = f": {client.nickname} {client.uuid}" if client is not None else ""
+            logger.debug(f"Removing player {client_id}: {suffix}")
             for slot in self.slots.values():
                 if slot.client_id == client_id:
                     slot.client_id = None
