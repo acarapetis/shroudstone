@@ -17,8 +17,27 @@ Shroudstone also acts as a general Python/CLI toolkit for working with
 Stormgate replays - right now it's probably not useful for much else, but
 hopefully it will grow over time :)
 
-Made possible by the great work of the [Stormgate
-World](https://www.stormgateworld.com/) team!
+## Caveats
+
+Shroudstone works by decoding the contents of replay files, which contain
+little more than the raw actions of each player. This means some of the
+information that is used is technically a guess, and might not be 100%
+accurate:
+
+- 1v1 match results are determined by who leaves the game first. In most ladder
+  games this is the loser "gging out"; but if you e.g. win by destroying all
+  your opponent's buildings and then leave the game before your opponent,
+  Shroudstone will incorrectly mark your game as a loss.
+- Likewise, game durations are determined by the time at which the first player
+  leaves the game - this can also be incorrect in the case of a win by elimination.
+
+Previously, Shroudstone used data obtained from the Stormgate World API to fill
+these gaps (in the case of 1v1 ladder games). Unfortunately, Frost Giant are no
+longer providing access to this data to the community,  so this will no
+longer be possible going forward. See [Stormgate World's
+post](https://stormgateworld.com/api-restrictions/) on the matter for more
+information - I agree wholeheartedly with their disappointment. Thanks to the
+Stormgate World team (and contributors) for their great work.
 
 ## Installation & Usage
 

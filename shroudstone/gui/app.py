@@ -44,8 +44,6 @@ class AppState:
     replay_dir: StringVar = field(StringVar)
     replay_name_format_1v1: StringVar = field(StringVar)
     replay_name_format_generic: StringVar = field(StringVar)
-    duration_strategy: StringVar = field(StringVar)
-    result_strategy: StringVar = field(StringVar)
     reprocess: BoolVar = field(BoolVar)
     dry_run: BoolVar = field(BoolVar)
     autorename: BoolVar = field(BoolVar)
@@ -220,8 +218,6 @@ def create_main_ui(root: App, cfg: config.Config):
         state.replay_dir.set(str(cfg.replay_dir or ""))
         state.replay_name_format_1v1.set(cfg.replay_name_format_1v1)
         state.replay_name_format_generic.set(cfg.replay_name_format_generic)
-        state.duration_strategy.set(cfg.duration_strategy.value)
-        state.result_strategy.set(cfg.result_strategy.value)
         state.minimize_to_tray.set(cfg.minimize_to_tray)
         state.show_log_on_autorename.set(cfg.show_log_on_autorename)
 
@@ -342,48 +338,6 @@ def create_main_ui(root: App, cfg: config.Config):
     format_error_generic = ttk.Label(form)
     format_error_generic.grid(row=6, column=1, sticky="WE", ipadx=5, ipady=5)
 
-    result_frame = ttk.LabelFrame(config_frame, text="How to determine game result")
-    result_frame.pack(fill="x", padx=5, pady=5)
-    ttk.Radiobutton(
-        result_frame,
-        variable=state.result_strategy,
-        value="prefer_stormgateworld",
-        text="Prefer Stormgate World, fall back to replay",
-    ).pack(side="left", padx=5, pady=5)
-    ttk.Radiobutton(
-        result_frame,
-        variable=state.result_strategy,
-        value="always_stormgateworld",
-        text="Stormgate World only",
-    ).pack(side="left", padx=5, pady=5)
-    ttk.Radiobutton(
-        result_frame,
-        variable=state.result_strategy,
-        value="always_replay",
-        text="Replay only (incorrect in elimination scenarios!)",
-    ).pack(side="left", padx=5, pady=5)
-
-    duration_frame = ttk.LabelFrame(config_frame, text="How to determine game duration")
-    duration_frame.pack(fill="x", padx=5, pady=5)
-    ttk.Radiobutton(
-        duration_frame,
-        variable=state.duration_strategy,
-        value="prefer_stormgateworld",
-        text="Prefer Stormgate World, fall back to replay",
-    ).pack(side="left", padx=5, pady=5)
-    ttk.Radiobutton(
-        duration_frame,
-        variable=state.duration_strategy,
-        value="always_stormgateworld",
-        text="Stormgate World only (slightly inaccurate!)",
-    ).pack(side="left", padx=5, pady=5)
-    ttk.Radiobutton(
-        duration_frame,
-        variable=state.duration_strategy,
-        value="always_replay",
-        text="Replay only (incorrect in elimination scenarios!)",
-    ).pack(side="left", padx=5, pady=5)
-
     config_buttons = ttk.Frame(config_frame)
     config_buttons.pack(fill="x")
 
@@ -495,14 +449,6 @@ def create_main_ui(root: App, cfg: config.Config):
     @state.replay_dir.on_change
     def _(*_):
         cfg.replay_dir = Path(state.replay_dir.get())
-
-    @state.duration_strategy.on_change
-    def _(*_):
-        cfg.duration_strategy = config.Strategy(state.duration_strategy.get())
-
-    @state.result_strategy.on_change
-    def _(*_):
-        cfg.result_strategy = config.Strategy(state.result_strategy.get())
 
     @state.minimize_to_tray.on_change
     def _(*_):
