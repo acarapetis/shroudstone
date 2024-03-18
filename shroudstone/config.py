@@ -51,8 +51,8 @@ class Config(BaseModel):
     replay_dir: Optional[Path] = None
     replay_name_format_1v1: str = DEFAULT_1v1_FORMAT
     replay_name_format_generic: str = DEFAULT_GENERIC_FORMAT
-    duration_strategy: Strategy = Strategy.prefer_stormgateworld
-    result_strategy: Strategy = Strategy.prefer_stormgateworld
+    duration_strategy: Strategy = Strategy.always_replay
+    result_strategy: Strategy = Strategy.always_replay
     minimize_to_tray: bool = False
     show_log_on_autorename: bool = False
 

@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from shroudstone import __version__
 from shroudstone.replay import Player, ReplaySummary, summarize_replay
-from shroudstone.config import Strategy, data_dir
+from shroudstone.config import Strategy, data_dir, Config
 from shroudstone.sgw_api import PlayersApi
 from shroudstone.stormgateworld.models import PlayerResponse
 
@@ -83,6 +83,11 @@ def migrate():
         )
         skipped_replays_file.unlink(missing_ok=True)
         rmtree(cache_dir)
+    if last_run_version < version.parse("0.1.0a36"):
+        logger.info("Setting renaming config to use replays only - RIP stormgateworld API :(")
+        config = Config.load()
+        config.duration_strategy = Strategy.always_replay
+        config.result_strategy = Strategy.always_replay
     last_run_version_file.write_text(__version__, encoding="utf-8")
 
 
