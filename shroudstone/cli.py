@@ -229,3 +229,20 @@ def get_replay_dir(config: Config) -> Path:
             config.replay_dir = Path(typer.prompt("Path to replay directory"))
         config.save()
     return config.replay_dir
+
+@app.command()
+def path_info():
+    import sys, os
+    frozen = 'not'
+    if getattr(sys, 'frozen', False):
+        # we are running in a bundle
+        frozen = 'ever so'
+        bundle_dir = sys._MEIPASS
+    else:
+        # we are running in a normal Python environment
+        bundle_dir = os.path.dirname(os.path.abspath(__file__))
+    print( 'we are',frozen,'frozen')
+    print( 'bundle dir is', bundle_dir )
+    print( 'sys.argv is', sys.argv )
+    print( 'sys.executable is', sys.executable )
+    print( 'os.getcwd is', os.getcwd() )

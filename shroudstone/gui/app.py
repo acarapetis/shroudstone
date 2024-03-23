@@ -13,7 +13,7 @@ from tkinter.filedialog import askdirectory
 from tkinter.messagebox import showinfo, showwarning, askyesno
 from tkinter.font import Font, families, nametofont
 
-from shroudstone import config, renamer
+from shroudstone import config, renamer, __version__
 from shroudstone.gui.fonts import setup_style
 from shroudstone.gui.logview import LogView
 from shroudstone.logging import configure_logging
@@ -117,7 +117,7 @@ class App(TkWithJobs):
         icon = self.systray_icon = Icon(
             name="Shroudstone",
             icon=image,
-            title="Shroudstone: Stormgate Replay Renamer",
+            title=f"Shroudstone v{__version__}: Stormgate Replay Renamer",
             menu=menu,
         )
 
