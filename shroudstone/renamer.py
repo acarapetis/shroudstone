@@ -82,7 +82,7 @@ def migrate():
             "Cache files are from an incompatible version of shroudstone, deleting them."
         )
         skipped_replays_file.unlink(missing_ok=True)
-        rmtree(cache_dir)
+        rmtree(cache_dir, ignore_errors=True)
     if last_run_version < version.parse("0.1.0a36"):
         logger.info("Setting renaming config to use replays only - RIP stormgateworld API :(")
         config = Config.load()
