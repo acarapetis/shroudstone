@@ -152,7 +152,7 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
 # Unfortunately, to correctly determine who's in player slots and who's in
 # spectator slots we need to know how many players the map has.
 # For now, this is just 2 unless it's WreckHavoc.
-player_slot_count: Dict[str, int] = defaultdict(lambda: 2, {"WreckHavoc": 3})
+player_slot_count: Dict[str, int] = defaultdict(lambda: 2, {"WreckHavoc": 3,"TheAbyssalGates" : 3})
 
 
 class SlotType(IntEnum):
@@ -164,6 +164,7 @@ class SlotType(IntEnum):
 class Faction(IntEnum):
     vanguard = 0
     infernals = 1
+    third_faction = 2
     blockade = 101
     maloc = 201
 
