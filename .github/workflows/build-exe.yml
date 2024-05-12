@@ -28,9 +28,15 @@ jobs:
       run: ./pyinstaller_build.bat
     - name: Test .exe
       run: ./dist/shroudstone.exe --help
+    - name: Determine release type
+      id: check-tag
+      run: |
+        if [[ ${{ github.ref }} =~ [0-9](a|b|rc)[0-9]+$ ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+        fi
     - name: Create release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/v')
       with:
         files: dist/shroudstone.exe
-        prerelease: ${{ contains(github.ref, 'a') }} # flag alpha releases as pre-release
+        prerelease: ${{ steps.check-tag.outputs.prerelease == 'true' }}
