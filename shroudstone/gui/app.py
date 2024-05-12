@@ -11,9 +11,8 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter.filedialog import askdirectory
 from tkinter.messagebox import showinfo, showwarning, askyesno
-from tkinter.font import Font, families, nametofont
 
-from shroudstone import config, renamer
+from shroudstone import config, renamer, __version__
 from shroudstone.gui.fonts import setup_style
 from shroudstone.gui.logview import LogView
 from shroudstone.logging import configure_logging
@@ -224,7 +223,7 @@ def create_main_ui(root: App, cfg: config.Config):
     def save_config():
         cfg.save()
 
-    root.title("Shroudstone - Stormgate Replay Renamer")
+    root.title(f"Shroudstone v{__version__} - Stormgate Replay Renamer")
 
     config_frame = ttk.LabelFrame(root, text="Configuration")
     config_frame.pack(fill="x", padx=5, pady=5)

@@ -29,15 +29,16 @@ accurate:
   your opponent's buildings and then leave the game before your opponent,
   Shroudstone will incorrectly mark your game as a loss.
 - Likewise, game durations are determined by the time at which the first player
-  leaves the game - this can also be incorrect in the case of a win by elimination.
+  leaves the game - this can also be incorrect in the case of a win by
+  elimination or in non-1v1 games.
 
 Previously, Shroudstone used data obtained from the Stormgate World API to fill
 these gaps (in the case of 1v1 ladder games). Unfortunately, Frost Giant are no
 longer providing access to this data to the community,  so this will no
 longer be possible going forward. See [Stormgate World's
 post](https://stormgateworld.com/api-restrictions/) on the matter for more
-information - I agree wholeheartedly with their disappointment. Thanks to the
-Stormgate World team (and contributors) for their great work.
+information. Thanks to the Stormgate World team (and contributors) for their
+great work, it was cool even if short-lived.
 
 ## Installation & Usage
 
