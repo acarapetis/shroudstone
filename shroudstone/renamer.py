@@ -76,7 +76,7 @@ def migrate():
             last_run_version_file.read_text(encoding="utf-8")
         )
     else:
-        last_run_version = version.parse("0.1.0a29")
+        last_run_version = version.parse(__version__)
     if last_run_version < version.parse("0.1.0a30"):
         logger.info(
             "Cache files are from an incompatible version of shroudstone, deleting them."
