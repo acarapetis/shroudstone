@@ -8,7 +8,7 @@ package stormgate;
 // Each chunk seems to be of the form 3: {1: {actual content}}
 // Since I don't know the meaning of those outer structs yet, I'm just putting them as inline messages:
 message ReplayChunk {
-    int32 timestamp = 1; // Pretty sure this is time in milliseconds since game start
+    int32 timestamp = 1; // Time since game start in units of 1/1024 seconds
     int32 client_id = 2;
     message Wrapper {
         message ReplayContent {
@@ -73,9 +73,17 @@ message LobbySetVariable {
 message StartGame {
 }
 
+
+enum LeaveReason {
+   Unknown = 0;
+   Surrender = 1;  // Player surrenders
+   Leave = 2;      // Player leaves game normally (game ended earlier, if this is the first PlayerLeftGame message, the outcome should be considered unknown)
+}
+
 // 25 - When a player exits the game/disconnects
 message PlayerLeftGame {
     UUID player_uuid = 1;
+    LeaveReason reason = 2;
 }
 
 // 37 - AssignPlayer (done by server as pl=64)

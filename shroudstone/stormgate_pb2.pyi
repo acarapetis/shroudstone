@@ -1,8 +1,18 @@
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import ClassVar as _ClassVar, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class LeaveReason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    Unknown: _ClassVar[LeaveReason]
+    Surrender: _ClassVar[LeaveReason]
+    Leave: _ClassVar[LeaveReason]
+Unknown: LeaveReason
+Surrender: LeaveReason
+Leave: LeaveReason
 
 class ReplayChunk(_message.Message):
     __slots__ = ("timestamp", "client_id", "inner")
@@ -92,10 +102,12 @@ class StartGame(_message.Message):
     def __init__(self) -> None: ...
 
 class PlayerLeftGame(_message.Message):
-    __slots__ = ("player_uuid",)
+    __slots__ = ("player_uuid", "reason")
     PLAYER_UUID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
     player_uuid: UUID
-    def __init__(self, player_uuid: _Optional[_Union[UUID, _Mapping]] = ...) -> None: ...
+    reason: LeaveReason
+    def __init__(self, player_uuid: _Optional[_Union[UUID, _Mapping]] = ..., reason: _Optional[_Union[LeaveReason, str]] = ...) -> None: ...
 
 class AssignPlayerSlot(_message.Message):
     __slots__ = ("uuid", "slot", "nickname")
