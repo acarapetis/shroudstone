@@ -165,3 +165,21 @@ Format strings for generic matches can use the following values:
 
 Contributions are welcome - feel free to open a PR, or message Pox on the
 Stormgate Discord if you want to discuss with me first.
+
+### Building
+
+Create a working directory:
+```
+mkdir shroudstone-workspace
+cd shroudstone-workspace
+```
+Download the code and setup a python virtual environment:
+```
+python -m venv .
+git clone https://github.com/acarapetis/shroudstone.git
+```
+Finally, install and run the code:
+```
+./bin/pip3 install -e shroudstone/
+./bin/shroudstone
+```
