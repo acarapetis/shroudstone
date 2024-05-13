@@ -14,7 +14,6 @@ classifiers = [
 keywords = ["Stormgate"]
 dynamic = ["version", "description"]
 dependencies = [
-    "pandas~=2.0",
     "pillow>=5.0",
     "protobuf~=4.23",
     "pydantic~=2.6",
@@ -23,7 +22,6 @@ dependencies = [
     "pyyaml>=5",
     "typer[all]~=0.9.0",
     "typing_extensions>=4.7.1",
-    "urllib3>=1.25.3",
 ]
 requires-python = "~=3.8"
 

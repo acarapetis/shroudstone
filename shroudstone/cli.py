@@ -15,7 +15,7 @@ from typing_extensions import Annotated
 import typer
 
 from shroudstone import __version__
-from shroudstone.config import DEFAULT_GENERIC_FORMAT, Config, config_file, DEFAULT_1v1_FORMAT, Strategy
+from shroudstone.config import DEFAULT_GENERIC_FORMAT, Config, config_file, DEFAULT_1v1_FORMAT
 from shroudstone.logging import configure_logging
 
 app = typer.Typer(rich_markup_mode="rich", help=sys.modules[__name__].__doc__)
@@ -170,8 +170,6 @@ def rename_replays(
             help="Clear the local match cache and re-retrieve all data from Stormgate World."
         ),
     ] = False,
-    duration_strategy: Strategy = Strategy.prefer_stormgateworld,
-    result_strategy: Strategy = Strategy.prefer_stormgateworld,
 ):
     """Automatically rename your replay files.
 
@@ -209,8 +207,6 @@ def rename_replays(
         reprocess=reprocess,
         format_1v1=format_1v1 or config.replay_name_format_1v1,
         format_generic=format_generic or config.replay_name_format_generic,
-        duration_strategy=duration_strategy,
-        result_strategy=result_strategy,
     )
 
 

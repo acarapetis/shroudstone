@@ -2,7 +2,6 @@
 from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from enum import Enum
 import os
 import string
 from pathlib import Path
@@ -10,20 +9,14 @@ import platform
 import re
 import logging
 from shutil import copytree, rmtree
-from time import sleep
 from typing import Iterable, NamedTuple, Optional, Union
 from typing_extensions import Literal
 from uuid import UUID
 from packaging import version
 
-import pandas as pd
-from pydantic import BaseModel
-
 from shroudstone import __version__
 from shroudstone.replay import Player, ReplaySummary, summarize_replay
-from shroudstone.config import Strategy, data_dir, Config
-from shroudstone.sgw_api import PlayersApi
-from shroudstone.stormgateworld.models import PlayerResponse
+from shroudstone.config import data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -83,12 +76,6 @@ def migrate():
         )
         skipped_replays_file.unlink(missing_ok=True)
         rmtree(cache_dir, ignore_errors=True)
-    if last_run_version < version.parse("0.1.0a36"):
-        logger.info("Setting renaming config to use replays only - RIP stormgateworld API :(")
-        config = Config.load()
-        config.duration_strategy = Strategy.always_replay
-        config.result_strategy = Strategy.always_replay
-        config.save()
     last_run_version_file.write_text(__version__, encoding="utf-8")
 
 
@@ -100,8 +87,6 @@ def rename_replays(
     backup: bool = True,
     reprocess: bool = False,
     files: Optional[Iterable[Path]] = None,
-    duration_strategy: Strategy = Strategy.prefer_stormgateworld,
-    result_strategy: Strategy = Strategy.prefer_stormgateworld,
 ):
     migrate()
     if dry_run:
@@ -136,8 +121,6 @@ def rename_replays(
             logger.exception(f"Unexpected error parsing {path}")
 
     replays = [x for x in map(try_parse, files) if x is not None]
-    our_uuids = {r.us.uuid for r in replays if r.us and r.us.uuid}
-    our_accounts = {uuid: get_player_by_uuid(uuid) for uuid in our_uuids}
     if not replays:
         logger.warning(
             "No new replays found to rename! "
@@ -148,17 +131,6 @@ def rename_replays(
     n = len(replays)
     earliest_time = min(x.time for x in replays)
     logger.info(f"Found {n} unrenamed replays going back to {earliest_time}.")
-    if (
-        result_strategy != Strategy.always_replay
-        or duration_strategy != Strategy.always_replay
-    ):
-        ps = ", ".join(p.nickname for p in our_accounts.values() if p.nickname)
-        logger.info(f"Fetching Stormgate World match history for players: {ps}")
-        matches: dict[Optional[UUID], pd.DataFrame] = {
-            k: get_player_matches(v.id) for k, v in our_accounts.items()
-        }
-    else:
-        matches = {}
     if not skipped_replays_file.exists():
         skipped_replays_file.touch()
     previously_skipped_paths = {
@@ -169,49 +141,28 @@ def rename_replays(
     skipped_paths = []
 
     counts = defaultdict(lambda: 0)
-    for r in replays:
-        try:
-            inputs = gather_inputs(r, matches=matches.get(r.us and r.us.uuid, None))
-        except MatchOngoing:
-            logger.info(
-                f"Found match for {r.path.name}, but it's still marked as ongoing - we'll rename it later."
+    for replay in replays:
+        if replay.path in previously_skipped_paths:
+            counts["skipped_old"] += 1
+            logger.debug(
+                f"We've previously skipped {replay.path.name}, so not commenting on it this time."
             )
-            counts["skipped_ongoing"] += 1
-        except NoMatch:
-            if r.path in previously_skipped_paths:
-                counts["skipped_old"] += 1
-                logger.debug(
-                    f"We've previously skipped {r.path.name}, so not commenting on it this time."
-                )
-            else:
+        elif any(p.is_ai for p in replay.summary.players):
                 counts["skipped_new"] += 1
-                skipped_paths.append(r.path)
-                if any(p.is_ai for p in r.summary.players):
-                    logger.info(f"{r.path.name} is a game vs AI, skipping it.")
-                elif len(r.summary.players) == 1:
-                    nick = r.summary.players[0].nickname
-                    logger.info(
-                        f"No match found for {r.path.name}. Only one player was found ({nick})"
-                        ", so this is probably a match vs AI."
-                    )
-                else:
-                    logger.warning(
-                        f"No match found for {r.path.name} in stormgateworld match history."
-                        " Could be a custom game?"
-                    )
+                skipped_paths.append(replay.path)
+                logger.info(f"{replay.path.name} is a game vs AI, skipping it.")
+                continue
         else:
             try:
                 rename_replay(
-                    inputs,
+                    replay,
                     dry_run=dry_run,
                     format_1v1=format_1v1,
                     format_generic=format_generic,
-                    duration_strategy=duration_strategy,
-                    result_strategy=result_strategy,
                 )
                 counts["renamed"] += 1
             except Exception as e:
-                logger.error(f"Unexpected error handling {r.path}: {e}")
+                logger.error(f"Unexpected error handling {replay.path}: {e}")
                 counts["error"] += 1
 
     if not dry_run:
@@ -276,150 +227,6 @@ class Replay(NamedTuple):
         return Replay(path=path, time=time, us=us, them=them, summary=summary)
 
 
-def get_player_by_uuid(uuid: UUID) -> PlayerResponse:
-    uuid_dir.mkdir(exist_ok=True, parents=True)
-    cache_file = uuid_dir / f"{uuid}.json"
-    if cache_file.exists():
-        player = PlayerResponse.model_validate_json(
-            cache_file.read_text(encoding="utf-8")
-        )
-    else:
-        player = PlayersApi.get_player(str(uuid))
-        cache_file.write_text(player.model_dump_json(indent=2), encoding="utf-8")
-    return player
-
-
-def clear_cached_matches():
-    logger.info(f"Clearing local match cache.")
-    for cache_file in cache_dir.glob("*.csv"):
-        cache_file.unlink(missing_ok=True)
-
-
-def load_cached_matches(player_id: str) -> Optional[pd.DataFrame]:
-    cache_dir.mkdir(exist_ok=True, parents=True)
-    cache_file = cache_dir / f"{player_id}.csv"
-    if cache_file.exists():
-        return pd.read_csv(
-            cache_file, parse_dates=["created_at", "ended_at"], index_col="match_id"
-        )
-
-
-def save_cached_matches(player_id: str, matches: pd.DataFrame):
-    logger.info(f"Saving {len(matches)} matches to local cache.")
-    cache_dir.mkdir(exist_ok=True, parents=True)
-    cache_file = cache_dir / f"{player_id}.csv"
-    matches.to_csv(cache_file, index=True)
-
-
-def get_player_matches(player_id: str):
-    """Get the complete set of matches for the player of interest.
-
-    We make the assumption that matches are only ever added going forward in
-    time, allowing us to start with the most recent matches and request back
-    only as far as required until we hit the last cached match."""
-    cached_matches = load_cached_matches(player_id)
-    if cached_matches is None:
-        last_cached_match_time = datetime(1970, 1, 1, 0, 0, 0)
-        n = 0
-        logger.info(
-            f"No local match cache found for {player_id}, requesting complete match history."
-        )
-    else:
-        last_cached_match_time = cached_matches.created_at.max()
-        n = len(cached_matches)
-        logger.info(
-            f"Loaded {n} matches from local cache, most recent dated {last_cached_match_time}."
-        )
-
-    page = 1
-    logger.info(
-        f"Requesting most recent matches for {player_id} from Stormgate World API."
-    )
-    matches = fetch_player_matches_page(player_id, page=page)
-    if matches is None:
-        raise Exception(
-            "Could not find any matches for {player_id=} - check this player_id is correct!"
-        )
-    # Add an hour's padding to avoid any weird edge cases
-    while matches.created_at.min() > last_cached_match_time - timedelta(hours=1):
-        sleep(1)  # Be nice to the API servers! You can wait a few seconds!
-        logger.info(
-            f"Got matches back to {matches.created_at.min()}, requesting next page from API."
-        )
-        page += 1
-        next_page = fetch_player_matches_page(player_id, page=page)
-        if next_page is None:
-            break
-        matches = pd.concat([matches, next_page])
-    if cached_matches is not None:
-        matches = pd.concat([cached_matches, matches])
-        dups = matches.index.duplicated(keep="last")
-        matches = matches[~dups]
-    matches = matches.sort_values(["created_at", "match_id"])
-    # Don't cache incomplete data from ongoing matches:
-    save_cached_matches(player_id, matches[matches["state"] != "ongoing"])
-    return matches
-
-
-def fetch_player_matches_page(player_id: str, page: int):
-    # This is inefficient - we're converting JSON to pydantic then back to JSON
-    # - but not gonna bother optimizing unless it's actually slow
-    data = (
-        PlayersApi.get_player_matches(player_id, page=page)
-        .model_dump(mode="json")
-        .get("matches")
-    )
-    if not data:
-        return None
-    data = [flatten_match(player_id, x) for x in data]
-    matches = pd.json_normalize([x for x in data if x is not None])
-    return matches.assign(
-        ended_at=pd.to_datetime(matches["ended_at"]),
-        created_at=pd.to_datetime(matches["created_at"]),
-    ).set_index("match_id")
-
-
-def flatten_match(player_id: str, match: dict):
-    """Rewrite the players array as two keys `us` and `them`."""
-    try:
-        match["us"] = next(
-            p for p in match["players"] if p["player"]["player_id"] == player_id
-        )
-        match["them"] = next(
-            p for p in match["players"] if p["player"]["player_id"] != player_id
-        )
-    except Exception:
-        return None
-    del match["players"]
-    return match
-
-
-class NoMatch(Exception):
-    pass
-
-
-class MatchOngoing(Exception):
-    pass
-
-
-class RenameInputs(BaseModel):
-    """All the data gathered together to rename a replay"""
-
-    replay: Replay
-    api_data: Optional[APIMatchData] = None
-
-
-class APIMatchData(BaseModel):
-    """Match data obtained from the stormgateworld API"""
-
-    result: str
-    duration: float
-
-    @staticmethod
-    def from_row(row: pd.Series):
-        return APIMatchData(result=row["us.result"], duration=row["duration"])
-
-
 def find_our_uuid(replay_path: Path) -> Optional[UUID]:
     """Given the path to a Stormgate replay, extract the player UUID. (This
     assumes it's stored in the usual directory heirarchy.)"""
@@ -430,95 +237,39 @@ def find_our_uuid(replay_path: Path) -> Optional[UUID]:
             pass
 
 
-def gather_inputs(replay: Replay, matches: Optional[pd.DataFrame]) -> RenameInputs:
-    """Given a replay and a list of match records from stormgateworld, try to
-    find the match corresponding to the replay by comparing times and player
-    UUIDs, and gather all the data into a RenameInputs struct.
-
-    Raises MatchOngoing if match is found but still marked as ongoing on
-    stormgateworld. Raises NoMatch if the replay looks like a 1v1 ladder match
-    but could not be found on stormgateworld."""
-    result = RenameInputs(replay=replay)
-
-    if matches is None:
-        return result
-
-    delta = (matches.created_at - replay.time).abs()
-    df = matches.assign(delta=delta)
-    candidates = df[delta < TOLERANCE].sort_values("delta")
-
-    for _, match in candidates.iterrows():
-        match_player_ids = {
-            match.get("us.player.player_id"),
-            match.get("them.player.player_id"),
-        }
-        replay_players = [
-            get_player_by_uuid(p.uuid)
-            for p in replay.summary.players
-            if p.uuid is not None
-        ]
-
-        if match_player_ids == {p.id for p in replay_players}:
-            if match["state"] == "ongoing":
-                raise MatchOngoing()
-            result.api_data = APIMatchData.from_row(match)
-            break
-    else:
-        if replay.summary.is_1v1_ladder_game:
-            raise NoMatch()
-
-    return result
-
-
-def get_duration(inputs: RenameInputs, strategy: Strategy):
-    if strategy == Strategy.always_stormgateworld and inputs.api_data is None:
+def get_result(replay: Replay):
+    if not (replay.us and replay.them):
         return None
-    elif strategy.allows_stormgateworld() and inputs.api_data is not None:
-        return inputs.api_data.duration
-    else:
-        return inputs.replay.summary.duration_seconds
-
-
-def get_result(inputs: RenameInputs, strategy: Strategy):
-    if strategy == Strategy.always_stormgateworld and inputs.api_data is None:
-        return None
-    elif strategy.allows_stormgateworld() and inputs.api_data is not None:
-        return inputs.api_data.result
-    else:
-        if not (inputs.replay.us and inputs.replay.them):
-            return None
-        t1 = inputs.replay.us.disconnect_time
-        t2 = inputs.replay.them.disconnect_time
-        if t1 and t2:
-            return "win" if t1 > t2 else "loss"
-        elif t1:
-            return "loss"
-        elif t2:
-            return "win"
+    t1 = replay.us.disconnect_time
+    t2 = replay.them.disconnect_time
+    if t1 and t2:
+        return "win" if t1 > t2 else "loss"
+    elif t1:
+        return "loss"
+    elif t2:
+        return "win"
 
 
 def rename_replay(
-    inputs: RenameInputs,
+    replay: Replay,
     dry_run: bool,
     format_1v1: str,
     format_generic: str,
-    duration_strategy: Strategy = Strategy.prefer_stormgateworld,
-    result_strategy: Strategy = Strategy.prefer_stormgateworld,
 ):
     parts = {}
-    parts["map_name"] = inputs.replay.summary.map_name
-    parts["build_number"] = inputs.replay.summary.build_number
-    duration = get_duration(inputs, duration_strategy)
+    parts["map_name"] = replay.summary.map_name
+    parts["build_number"] = replay.summary.build_number
+    duration = replay.summary.duration_seconds
     if duration is not None:
         minutes, seconds = divmod(int(duration), 60)
         parts["duration"] = f"{minutes:02d}m{seconds:02d}s"
     else:
         parts["duration"] = ""
 
-    parts["time"] = inputs.replay.time
+    parts["time"] = replay.time
 
-    us = inputs.replay.us
-    them = inputs.replay.them
+    us = replay.us
+    them = replay.them
     if us and them:
         parts["us"] = parts["p1"] = us.nickname
         parts["them"] = parts["p2"] = them.nickname
@@ -526,24 +277,24 @@ def rename_replay(
         parts["r1"] = parts["f1"] = (us.faction or "").capitalize()
         parts["r2"] = parts["f2"] = (them.faction or "").capitalize()
 
-        result = get_result(inputs, result_strategy)
+        result = get_result(replay)
         parts["result"] = (result or "unknown").capitalize()
 
         newname = format_1v1.format(**parts)
     else:
         parts["players"] = ", ".join(
-            p.nickname.capitalize() for p in inputs.replay.summary.players
+            p.nickname.capitalize() for p in replay.summary.players
         )
         parts["players_with_factions"] = ", ".join(
-            f"{p.nickname.capitalize()} {(p.faction or '').upper():.1}" for p in inputs.replay.summary.players
+            f"{p.nickname.capitalize()} {(p.faction or '').upper():.1}" for p in replay.summary.players
         )
         newname = format_generic.format(**parts)
 
     # In case we left some blanks, collapse multiple spaces to one space
     newname = re.sub(r"\s+", " ", newname)
 
-    target = inputs.replay.path.parent / newname
-    do_rename(inputs.replay.path, target, dry_run=dry_run)
+    target = replay.path.parent / newname
+    do_rename(replay.path, target, dry_run=dry_run)
 
 
 def do_rename(source: Path, target: Path, dry_run: bool):
@@ -606,28 +357,6 @@ def guess_replay_dir() -> Optional[Path]:
     for path in paths:
         if path.is_dir():
             return path
-
-
-def guess_player_uuid(replay_dir: Path) -> Optional[UUID]:
-    uuids = []
-    for d in replay_dir.iterdir():
-        if d.is_dir():
-            try:
-                uuids.append(UUID(d.name))
-            except ValueError:
-                pass
-    if len(uuids) == 1:
-        return uuids[0]
-
-
-def guess_player(replay_dir: Path) -> Optional[PlayerResponse]:
-    uuid = guess_player_uuid(replay_dir)
-    if not uuid:
-        return None
-    try:
-        return get_player_by_uuid(uuid)
-    except Exception:
-        return None
 
 
 def validate_format_string(format: str, type: Union[Literal["1v1"], Literal["generic"]]):

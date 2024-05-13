@@ -391,8 +391,6 @@ def create_main_ui(root: App, cfg: config.Config):
             format_generic=cfg.replay_name_format_generic,
             reprocess=state.reprocess.get(),
             dry_run=state.dry_run.get(),
-            duration_strategy=cfg.duration_strategy,
-            result_strategy=cfg.result_strategy,
         )
 
     options_frame = ttk.LabelFrame(root, text="Options")

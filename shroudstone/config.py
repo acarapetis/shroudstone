@@ -28,31 +28,10 @@ DEFAULT_GENERIC_FORMAT = "{time:%Y-%m-%d %H.%M} {duration} {players_with_faction
 """Default format string for new 1v1 replay filenames"""
 
 
-class Strategy(Enum):
-    prefer_stormgateworld = "prefer_stormgateworld"
-    """Obtain from Stormgate World if available, otherwise determine from replay."""
-    always_stormgateworld = "always_stormgateworld"
-    """Obtain from Stormgate World if available, otherwise record Unknown."""
-    always_replay = "always_replay"
-    """Always determine from replay."""
-
-    def allows_stormgateworld(self):
-        return (
-            self == Strategy.prefer_stormgateworld
-            or self == Strategy.always_stormgateworld
-        )
-
-    def __str__(self):
-        return self.value
-
-
-
 class Config(BaseModel):
     replay_dir: Optional[Path] = None
     replay_name_format_1v1: str = DEFAULT_1v1_FORMAT
     replay_name_format_generic: str = DEFAULT_GENERIC_FORMAT
-    duration_strategy: Strategy = Strategy.always_replay
-    result_strategy: Strategy = Strategy.always_replay
     minimize_to_tray: bool = False
     show_log_on_autorename: bool = False
 
