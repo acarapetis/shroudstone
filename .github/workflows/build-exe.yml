@@ -29,6 +29,7 @@ jobs:
     - name: Test .exe
       run: ./dist/shroudstone.exe --help
     - name: Determine release type
+      shell: bash
       id: check-tag
       run: |
         if [[ ${{ github.ref }} =~ [0-9](a|b|rc)[0-9]+$ ]]; then
