@@ -66,7 +66,9 @@ class Config(BaseModel):
                     content["replay_name_format_1v1"] = content["replay_name_format"]
                 return Config.model_validate(content)
         else:
-            return Config()
+            config = Config()
+            config.save()
+            return config
 
     def save(self):
         with config_file.open("wt", encoding="utf-8") as f:

@@ -130,12 +130,16 @@ class App(TkWithJobs):
         self.tray_quit_event.set()
 
 
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.vars = AppState()
         self.protocol("WM_DELETE_WINDOW", self.on_window_close)
         logger.debug(f"Main thread is {get_ident()}")
+
+        self.after(0, self.custom_startup)
+
+    def custom_startup(self):
+        """This method performs custom startup actions *after* the mainloop has started."""
 
         # The systray icon passes this message back from its thread when it's done:
         self.tray_quit_event = Event()
@@ -148,6 +152,11 @@ class App(TkWithJobs):
         self.setup_tray_icon()
 
 
+
+# TODO: Move the following methods inside our custom App class?
+# We currently have some root.after calls in here, and some in our
+# custom_startup method, so it's a bit of a mess. Definitely some kind of
+# tidyup needs to be done.
 def run():
     configure_logging()
     renamer.migrate()
@@ -161,9 +170,7 @@ def run():
     setup_window_icon(root)
 
     if cfg.replay_dir is None:
-        configure_replay_dir(root, root.vars, cfg)
-        cfg.replay_dir = Path(root.vars.replay_dir.get())
-        cfg.save()
+        root.after(0, lambda: configure_replay_dir(root, root.vars, cfg))
 
     create_main_ui(root, cfg)
     root.mainloop()
@@ -196,6 +203,7 @@ def configure_replay_dir(root: TkWithJobs, state: AppState, cfg: config.Config):
             message=f"Detected your replay directory as {cfg.replay_dir}."
             " If this is incorrect, please configure it manually on the next screen.",
         )
+    cfg.save()
     root.deiconify()
 
 

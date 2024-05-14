@@ -165,3 +165,28 @@ Format strings for generic matches can use the following values:
 
 Contributions are welcome - feel free to open a PR, or message Pox on the
 Stormgate Discord if you want to discuss with me first.
+
+### Developing
+
+Assuming you have python 3.8+ and pip installed on your system, all you need to
+do to start working on shroudstone is to clone the repository and install the
+python package in *development mode*. [See
+here](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) for
+more information, or follow this recipe to get started using a virtual
+environment:
+
+Create a working directory:
+```
+mkdir shroudstone-workspace
+cd shroudstone-workspace
+```
+Download the code and setup a python virtual environment:
+```
+python -m venv .venv
+git clone https://github.com/acarapetis/shroudstone.git
+```
+Finally, install and run the code:
+```
+.venv/bin/pip3 install -e shroudstone/
+.venv/bin/shroudstone
+```
