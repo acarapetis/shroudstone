@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 # This is very close to 1/1024 of a second, so we'll assume that this is the exact value.
 REPLAY_TIMESTAMP_UNIT = 1 / 1024
 
+FRIGATE = 55366
 
 @contextmanager
 def decompress(replay: Union[Path, BinaryIO]):
@@ -87,6 +88,7 @@ class Player(BaseModel):
     faction: Optional[str] = None
     is_ai: bool = False
     disconnect_time: Optional[float] = None
+    leave_reason: str = "unknown"
 
 
 class ReplaySummary(BaseModel):
@@ -135,6 +137,7 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
             )
             if state.game_started_time is not None and client.left_game_time is not None:
                 p.disconnect_time = (client.left_game_time - state.game_started_time)*REPLAY_TIMESTAMP_UNIT
+            p.leave_reason = client.left_game_reason.name
     for client in state.clients.values():
         if client.slot_number != 255:
             raise ReplayParsingError("Player not in a slot but slot_number != 255?")
@@ -182,6 +185,14 @@ class Slot(BaseModel):
     client_id: Optional[int] = None
 
 
+# The python protobuf bindings don't use standard python enums - they just return ints.
+# I want nice type hints so I'm just going to maintain this manually.
+class LeftGameReason(IntEnum):
+    unknown = 0
+    surrender = 1
+    leave = 2
+
+
 class Client(BaseModel):
     uuid: UUID
     client_id: int
@@ -189,6 +200,7 @@ class Client(BaseModel):
     discriminator: str
     slot_number: Optional[int] = None  # 255 means spectator
     left_game_time: Optional[float] = None
+    left_game_reason: LeftGameReason = LeftGameReason.unknown
 
 
 def parse_uuid(uuid: pb.UUID) -> UUID:
@@ -253,9 +265,10 @@ class GameState(BaseModel):
                 f"Putting player {client_id} in pre-assigned slot {slot_number}"
             )
 
-    def handle_player_left_game(self, _: pb.PlayerLeftGame, client_id, timestamp):
+    def handle_player_left_game(self, msg: pb.PlayerLeftGame, client_id, timestamp):
         if self.game_started:
             self.clients[client_id].left_game_time = timestamp
+            self.clients[client_id].left_game_reason = LeftGameReason(msg.reason)
         else:
             client = self.clients.pop(client_id, None)
             # In aborted ladder games, we sometimes get a left game before the player joined message

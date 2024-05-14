@@ -15,7 +15,7 @@ from uuid import UUID
 from packaging import version
 
 from shroudstone import __version__
-from shroudstone.replay import Player, ReplaySummary, summarize_replay
+from shroudstone.replay import Player, ReplaySummary, summarize_replay, FRIGATE
 from shroudstone.config import data_dir
 
 logger = logging.getLogger(__name__)
@@ -240,14 +240,24 @@ def find_our_uuid(replay_path: Path) -> Optional[UUID]:
 def get_result(replay: Replay):
     if not (replay.us and replay.them):
         return None
-    t1 = replay.us.disconnect_time
-    t2 = replay.them.disconnect_time
-    if t1 and t2:
-        return "win" if t1 > t2 else "loss"
-    elif t1:
-        return "loss"
-    elif t2:
-        return "win"
+    if replay.summary.build_number >= FRIGATE:
+        # Since Frigate we've had explicit surrender messages, so we rely on them alone for certainty:
+        if replay.us.leave_reason == "surrender":
+            return "loss"
+        if replay.them.leave_reason == "surrender":
+            return "win"
+        return None
+    else:
+        # For old replays, best we can do is guess based on disconnection times:
+        t1 = replay.us.disconnect_time
+        t2 = replay.them.disconnect_time
+        if t1 and t2:
+            return "win" if t1 > t2 else "loss"
+        elif t1:
+            return "loss"
+        elif t2:
+            return "win"
+
 
 
 def rename_replay(
@@ -271,6 +281,7 @@ def rename_replay(
     us = replay.us
     them = replay.them
     if us and them:
+        # 1v1
         parts["us"] = parts["p1"] = us.nickname
         parts["them"] = parts["p2"] = them.nickname
 
