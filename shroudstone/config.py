@@ -22,6 +22,7 @@ def _platform_data_dir() -> Path:
 data_dir = _platform_data_dir() / "shroudstone"
 data_dir.mkdir(parents=True, exist_ok=True)
 config_file = data_dir / "config.yaml"
+db_file = data_dir / "replays.db"
 
 DEFAULT_1v1_FORMAT = "{time:%Y-%m-%d %H.%M} {result:.1} {duration} {us} {f1:.1}v{f2:.1} {them} - {map_name}.SGReplay"
 DEFAULT_GENERIC_FORMAT = "{time:%Y-%m-%d %H.%M} {duration} {players_with_factions} - {map_name}.SGReplay"
