@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
 import os
 import string
 from pathlib import Path
@@ -199,12 +199,19 @@ class Replay(NamedTuple):
     them: Optional[Player]
 
     @staticmethod
-    def from_path(path: Path):
+    def from_path(path: Path, filename_timezone: Optional[tzinfo] = None):
         # Original names use local times:
         if m := re.search(r"(\d\d\d\d)\.(\d\d)\.(\d\d)-(\d\d).(\d\d)", path.name):
-            time = naive_localtime_to_utc(
-                datetime(*(int(x) for x in m.groups()))  # type: ignore
-            )
+            if filename_timezone is None:
+                # Assume local time
+                time = naive_localtime_to_utc(
+                    datetime(*(int(x) for x in m.groups()))  # type: ignore
+                )
+            else:
+                time = datetime(
+                    *(int(x) for x in m.groups()), tzinfo=filename_timezone
+                ).astimezone(timezone.utc)
+
         # Our renamed versions use UTC:
         elif m := re.search(r"(\d\d\d\d)-(\d\d)-(\d\d) (\d\d).(\d\d)", path.name):
             time = datetime(*(int(x) for x in m.groups()))  # type: ignore
