@@ -154,12 +154,11 @@ def rename_replays(
                 continue
         else:
             try:
-                rename_replay(
-                    replay,
-                    dry_run=dry_run,
-                    format_1v1=format_1v1,
-                    format_generic=format_generic,
+                newname = new_name_for(
+                    replay, format_1v1=format_1v1, format_generic=format_generic
                 )
+                target = replay.path.parent / newname
+                do_rename(replay.path, target, dry_run=dry_run)
                 counts["renamed"] += 1
             except Exception as e:
                 logger.error(f"Unexpected error handling {replay.path}: {e}")
@@ -260,12 +259,7 @@ def get_result(replay: Replay):
 
 
 
-def rename_replay(
-    replay: Replay,
-    dry_run: bool,
-    format_1v1: str,
-    format_generic: str,
-):
+def new_name_for(replay: Replay, format_1v1: str, format_generic: str) -> str:
     parts = {}
     parts["map_name"] = replay.summary.map_name
     parts["build_number"] = replay.summary.build_number
@@ -302,10 +296,8 @@ def rename_replay(
         newname = format_generic.format(**parts)
 
     # In case we left some blanks, collapse multiple spaces to one space
-    newname = re.sub(r"\s+", " ", newname)
+    return re.sub(r"\s+", " ", newname)
 
-    target = replay.path.parent / newname
-    do_rename(replay.path, target, dry_run=dry_run)
 
 
 def do_rename(source: Path, target: Path, dry_run: bool):
