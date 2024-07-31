@@ -1,4 +1,5 @@
 """Stormgate replay parsing tools"""
+
 from __future__ import annotations
 from collections import defaultdict
 from contextlib import contextmanager
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 REPLAY_TIMESTAMP_UNIT = 1 / 1024
 
 FRIGATE = 55366
+
 
 @contextmanager
 def decompress(replay: Union[Path, BinaryIO]):
@@ -135,8 +137,13 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                     faction=slot.faction.name,
                 )
             )
-            if state.game_started_time is not None and client.left_game_time is not None:
-                p.disconnect_time = (client.left_game_time - state.game_started_time)*REPLAY_TIMESTAMP_UNIT
+            if (
+                state.game_started_time is not None
+                and client.left_game_time is not None
+            ):
+                p.disconnect_time = (
+                    client.left_game_time - state.game_started_time
+                ) * REPLAY_TIMESTAMP_UNIT
             p.leave_reason = client.left_game_reason.name
     for client in state.clients.values():
         if client.slot_number != 255:
@@ -148,7 +155,11 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                 uuid=client.uuid,
             )
         )
-    info.is_1v1_ladder_game = len(info.players) == 2 and len(info.spectators) == 0 and len(state.slot_assignments) > 0
+    info.is_1v1_ladder_game = (
+        len(info.players) == 2
+        and len(info.spectators) == 0
+        and len(state.slot_assignments) > 0
+    )
     return info
 
 
@@ -156,8 +167,17 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
 # spectator slots we need to know how many players the map has; and this
 # metadata is not included in the replay.
 # For now, we just hardcode the known co-op maps.
-player_slot_count: Dict[str, int] = defaultdict(lambda: 2, {"WreckHavoc": 3,"TheAbyssalGates" : 3,"TurfWar" : 3,
-                                                            "IsleOfDread": 3, "RitualWoods": 3,"InfestedCrater": 3})
+player_slot_count: Dict[str, int] = defaultdict(
+    lambda: 2,
+    {
+        "WreckHavoc": 3,
+        "TheAbyssalGates": 3,
+        "TurfWar": 3,
+        "IsleOfDread": 3,
+        "RitualWoods": 3,
+        "InfestedCrater": 3,
+    },
+)
 
 
 class SlotType(IntEnum):
