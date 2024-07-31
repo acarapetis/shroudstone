@@ -167,7 +167,7 @@ class SlotType(IntEnum):
 class Faction(IntEnum):
     vanguard = 0
     infernals = 1
-    catgirls = 2
+    celestial = 2
     blockade = 101
     maloc = 201
 
