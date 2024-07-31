@@ -25,6 +25,11 @@ dependencies = [
 ]
 requires-python = "~=3.8"
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8", 
+]
+
 [project.urls]
 Source = "https://github.com/acarapetis/shroudstone"
 

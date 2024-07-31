@@ -1,0 +1,22 @@
+on:
+  push:
+    branches:
+      - "*"
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python }}
+        cache: pip
+    - name: Install shroudstone
+      run: pip install -e .[test]
+    - name: Run tests
+      run: python -m pytest
