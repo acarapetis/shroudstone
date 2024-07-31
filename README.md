@@ -190,3 +190,9 @@ Finally, install and run the code:
 .venv/bin/pip3 install -e shroudstone/
 .venv/bin/shroudstone
 ```
+To run the tests, just install and invoke pytest:
+```
+.venv/bin/pip3 install pytest
+.venv/bin/python -m pytest
+````
+Note that the tests require python 3.9 or higher.
