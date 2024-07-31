@@ -176,6 +176,7 @@ player_slot_count: Dict[str, int] = defaultdict(
         "IsleOfDread": 3,
         "RitualWoods": 3,
         "InfestedCrater": 3,
+        "CrookedCanyon": 3,
     },
 )
 
