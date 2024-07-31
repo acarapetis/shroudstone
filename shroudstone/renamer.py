@@ -1,4 +1,5 @@
 """Rename stormgate replays to include useful info in filename"""
+
 from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -148,10 +149,10 @@ def rename_replays(
                 f"We've previously skipped {replay.path.name}, so not commenting on it this time."
             )
         elif any(p.is_ai for p in replay.summary.players):
-                counts["skipped_new"] += 1
-                skipped_paths.append(replay.path)
-                logger.info(f"{replay.path.name} is a game vs AI, skipping it.")
-                continue
+            counts["skipped_new"] += 1
+            skipped_paths.append(replay.path)
+            logger.info(f"{replay.path.name} is a game vs AI, skipping it.")
+            continue
         else:
             try:
                 newname = new_name_for(
