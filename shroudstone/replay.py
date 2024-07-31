@@ -153,8 +153,9 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
 
 
 # Unfortunately, to correctly determine who's in player slots and who's in
-# spectator slots we need to know how many players the map has.
-# For now, this is just 2 unless it's WreckHavoc.
+# spectator slots we need to know how many players the map has; and this
+# metadata is not included in the replay.
+# For now, we just hardcode the known co-op maps.
 player_slot_count: Dict[str, int] = defaultdict(lambda: 2, {"WreckHavoc": 3,"TheAbyssalGates" : 3,"TurfWar" : 3,
                                                             "IsleOfDread": 3, "RitualWoods": 3,"InfestedCrater": 3})
 
