@@ -21,9 +21,9 @@ jobs:
         path: ./build
         key: pyinstaller-build
     - name: Install shroudstone & pyinstaller
-      run: pip install pyinstaller -e .
-    - name: Sanity check
-      run: shroudstone --help
+      run: pip install pyinstaller -e .[test]
+    - name: Run tests
+      run: python -m pytest
     - name: Build shroudstone.exe
       run: ./pyinstaller_build.bat
     - name: Test .exe
