@@ -13,7 +13,7 @@ message ReplayChunk {
     message Wrapper {
         message ReplayContent {
             oneof content_type {
-                Map map = 3;
+                MapDetailsRecord MapDetailsRecord = 3;
                 ClientConnected client_connected = 4;
                 Player player = 12;
                 LobbyChangeSlot change_slot = 13;
@@ -40,7 +40,7 @@ message MapDetailsRecord {
 }
 
 enum MatchType {
-   Unknown = 0;
+   UnknownMatchType = 0;
    Custom = 1;
    Ranked1v1 = 2;
    Coop3vE = 3;

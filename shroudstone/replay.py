@@ -17,6 +17,7 @@ from . import stormgate_pb2 as pb
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel("DEBUG")
 
 
 # My empirical testing found that the timestamps in replays seem to be in units of ~0.976ms.
@@ -159,7 +160,7 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                 uuid=client.uuid,
             )
         )
-    info.is_1v1_ladder_game = (
+    info.is_1v1_ladder_game = ( #TODO: Can we update this with the match type?
         len(info.players) == 2
         and len(info.spectators) == 0
         and len(state.slot_assignments) > 0
@@ -247,6 +248,7 @@ class GameState(BaseModel):
     """Stormgate match state machine - reads commands from replay and updates state"""
 
     map_name: Optional[str] = None
+    match_type: Optional[str] = None
     slots: Dict[int, Slot] = {}
     clients: Dict[int, Client] = {}
     slot_assignments: Dict[UUID, SlotAssignment] = {}
@@ -272,10 +274,26 @@ class GameState(BaseModel):
         client_id = chunk.client_id
         timestamp = chunk.timestamp
 
-        if isinstance(msg, pb.Map):
-            self.map_name = msg.name
-            slot_count = player_slot_count[msg.name]
-            logger.debug(f"Setting up {slot_count} slots for map {msg.name}")
+        if isinstance(msg, pb.MapDetailsRecord):
+            self.map_name = msg.MapName
+            match(msg.MatchType):
+                case (0 | 1): #Unknown or Custom
+                    self.match_type = "Unknown"
+                    slot_count = player_slot_count[msg.MapName] #Fall back to old sysyem
+                case 2: #Ranked 1v1
+                    self.match_type = "Ranked 1v1"
+                    slot_count = 2
+                case 3: #Coop3vE
+                    self.match_type = "Coop 3vE"
+                    slot_count = 3
+                case _:
+                    ReplayParsingError("Unknown Match Type")
+
+            logger.debug(f"MatchType: {self.match_type}")
+
+
+
+            logger.debug(f"Setting up {slot_count} slots for map {msg.MapName}")
             for i in range(1, slot_count + 1):
                 self.slots[i] = Slot()
 
