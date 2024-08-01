@@ -30,10 +30,20 @@ message ReplayChunk {
 }
 
 // 3 - Map identifier + RNG seed
-message Map {
-    string folder = 1;
-    string name = 2;
-    int32 seed = 3;
+message MapDetailsRecord {
+   string MapFolder = 1;
+   string MapName = 2;
+   int32 MapSeed = 3;   // Is different every lobby, so probably some kind of seed
+   int64 Unknown5 = 5;
+   int64 Unknown6 = 6;
+   MatchType MatchType = 7;
+}
+
+enum MatchType {
+   Unknown = 0;
+   Custom = 1;
+   Ranked1v1 = 2;
+   Coop3vE = 3;
 }
 
 // 4 - sent by server after each player connects?
