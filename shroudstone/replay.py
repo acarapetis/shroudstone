@@ -128,6 +128,8 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
             )
         elif slot.client_id is not None:
             client = state.clients.pop(slot.client_id)
+            if client.nickname is None:
+                raise ReplayParsingError(f"No nickname found for client {client.client_id} = {client.uuid}?")
             info.players.append(
                 p := Player(
                     nickname=client.nickname,
@@ -148,6 +150,8 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
     for client in state.clients.values():
         if client.slot_number != 255:
             raise ReplayParsingError("Player not in a slot but slot_number != 255?")
+        if client.nickname is None:
+            raise ReplayParsingError(f"No nickname found for client {client.client_id} = {client.uuid}?")
         info.spectators.append(
             Spectator(
                 nickname=client.nickname,
@@ -222,11 +226,16 @@ class LeftGameReason(IntEnum):
 class Client(BaseModel):
     uuid: UUID
     client_id: int
-    nickname: str
-    discriminator: str
+    nickname: Optional[str] = None
+    discriminator: Optional[str] = None
     slot_number: Optional[int] = None  # 255 means spectator
     left_game_time: Optional[float] = None
     left_game_reason: LeftGameReason = LeftGameReason.unknown
+
+
+class SlotAssignment(BaseModel):
+    slot_number: int
+    nickname: str
 
 
 def parse_uuid(uuid: pb.UUID) -> UUID:
@@ -239,7 +248,7 @@ class GameState(BaseModel):
     map_name: Optional[str] = None
     slots: Dict[int, Slot] = {}
     clients: Dict[int, Client] = {}
-    slot_assignments: Dict[UUID, int] = {}
+    slot_assignments: Dict[UUID, SlotAssignment] = {}
     game_started: bool = False
     game_started_time: Optional[float] = None
 
@@ -272,7 +281,9 @@ class GameState(BaseModel):
             self.slots[i] = Slot()
 
     def handle_assign_player_slot(self, msg: pb.AssignPlayerSlot, **__):
-        self.slot_assignments[parse_uuid(msg.uuid)] = msg.slot
+        self.slot_assignments[parse_uuid(msg.uuid)] = SlotAssignment(
+            slot_number=msg.slot, nickname=msg.nickname
+        )
         logger.debug(f"Assigning slot {msg.slot} to {msg.uuid}")
 
     def handle_player(self, msg: pb.Player, client_id, **__):
@@ -284,11 +295,32 @@ class GameState(BaseModel):
         )
         logger.debug(f"Setting up player {client_id}: {client.nickname} {client.uuid}")
         # If we're in a matchmaking game, the server has pre-assigned a slot for the player:
-        if (slot_number := self.slot_assignments.get(client.uuid)) is not None:
-            client.slot_number = slot_number
-            self.slots[slot_number].client_id = client_id
+        if (assignment := self.slot_assignments.get(client.uuid)) is not None:
+            client.slot_number = assignment.slot_number
+            self.slots[assignment.slot_number].client_id = client_id
             logger.debug(
-                f"Putting player {client_id} in pre-assigned slot {slot_number}"
+                f"Putting player {client_id} in pre-assigned slot {client.slot_number}"
+            )
+
+    def handle_player_start_game(self, msg: pb.PlayerStartGame, **__):
+        if not msg.HasField("uuid"):
+            # We should have already filled in the player details in handle_player,
+            # don't worry about it
+            return
+        self.clients[msg.client_id] = client = Client(
+            client_id=msg.client_id,
+            uuid=parse_uuid(msg.uuid),
+        )
+        logger.debug(f"Setting up player {client.client_id}: {client.uuid}")
+        if (assignment := self.slot_assignments.get(client.uuid)) is not None:
+            client.slot_number = assignment.slot_number
+            if client.nickname is not None:
+                assert client.nickname == assignment.nickname
+            else:
+                client.nickname = assignment.nickname
+            self.slots[assignment.slot_number].client_id = client.client_id
+            logger.debug(
+                f"Putting player {client.client_id} in pre-assigned slot {client.slot_number}"
             )
 
     def handle_player_left_game(self, msg: pb.PlayerLeftGame, client_id, timestamp):

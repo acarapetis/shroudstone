@@ -14,6 +14,7 @@ message ReplayChunk {
         message ReplayContent {
             oneof content_type {
                 Map map = 3;
+                PlayerStartGame player_start_game = 4;
                 Player player = 12;
                 LobbyChangeSlot change_slot = 13;
                 LobbySetVariable set_variable = 15;
@@ -27,13 +28,21 @@ message ReplayChunk {
     Wrapper inner = 3;
 }
 
-// 3 - Map
+// 3 - Map identifier + RNG seed
 message Map {
     string folder = 1;
     string name = 2;
     int32 seed = 3;
 }
 
+// 4 - sent to a player to tell them the game has started, maybe?
+// in new co-op replay it's the only way to link a player to their client_id.
+message PlayerStartGame {
+    int32 client_id = 1;
+    UUID uuid = 2;
+}
+
+// 12 - Sent by a player when they join a game
 message Player {
     UUID uuid = 2;
     message PlayerName {
