@@ -17,7 +17,6 @@ from . import stormgate_pb2 as pb
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
 
 
 # My empirical testing found that the timestamps in replays seem to be in units of ~0.976ms.
