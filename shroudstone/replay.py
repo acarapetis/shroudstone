@@ -272,20 +272,20 @@ class GameState(BaseModel):
         client_id = chunk.client_id
         timestamp = chunk.timestamp
 
-        if content_type == "map":
+        if isinstance(msg, pb.Map):
             self.map_name = msg.name
             slot_count = player_slot_count[msg.name]
             logger.debug(f"Setting up {slot_count} slots for map {msg.name}")
             for i in range(1, slot_count + 1):
                 self.slots[i] = Slot()
 
-        elif content_type == "assign_player_slot":
+        elif isinstance(msg, pb.AssignPlayerSlot):
             self.slot_assignments[parse_uuid(msg.uuid)] = SlotAssignment(
                 slot_number=msg.slot, nickname=msg.nickname
             )
             logger.debug(f"Assigning slot {msg.slot} to {msg.uuid}")
 
-        elif content_type == "player":
+        elif isinstance(msg, pb.Player):
             self.clients[client_id] = client = Client(
                 client_id=client_id,
                 uuid=parse_uuid(msg.uuid),
@@ -301,7 +301,7 @@ class GameState(BaseModel):
                     f"Putting player {client_id} in pre-assigned slot {client.slot_number}"
                 )
 
-        elif content_type == "client_connected":
+        elif isinstance(msg, pb.ClientConnected):
             if not msg.HasField("uuid"):
                 # We should have already filled in the player details in handle_player,
                 # don't worry about it
@@ -322,7 +322,7 @@ class GameState(BaseModel):
                     f"Putting player {client.client_id} in pre-assigned slot {client.slot_number}"
                 )
 
-        elif content_type == "player_left_game":
+        elif isinstance(msg, pb.PlayerLeftGame):
             if self.game_started:
                 self.clients[client_id].left_game_time = timestamp
                 self.clients[client_id].left_game_reason = LeftGameReason(msg.reason)
@@ -335,7 +335,7 @@ class GameState(BaseModel):
                     if slot.client_id == client_id:
                         slot.client_id = None
 
-        elif content_type == "client_disconnected":
+        elif isinstance(msg, pb.ClientDisconnected):
             if self.game_started:
                 client = self.clients[msg.client_id]
                 if client.left_game_time is None:
@@ -344,7 +344,7 @@ class GameState(BaseModel):
                     client.left_game_time = timestamp
                     client.left_game_reason = LeftGameReason(msg.reason)
 
-        elif content_type == "change_slot":
+        elif isinstance(msg, pb.LobbyChangeSlot):
             if not self.slots:
                 raise ReplayParsingError("Received slot change before map info?")
             client = self.clients[client_id]
@@ -370,7 +370,7 @@ class GameState(BaseModel):
                 slot.client_id = client_id
                 logger.debug(f"Putting player {client_id} in slot {slot_number}")
 
-        elif content_type == "set_variable":
+        elif isinstance(msg, pb.LobbySetVariable):
             slot = self.slots[msg.slot]
             key = msg.variable_id
             value = msg.value
@@ -390,7 +390,7 @@ class GameState(BaseModel):
                 slot.ai_type = AIType(value)
                 logger.debug(f"Set slot[{msg.slot}].ai_type = {slot.ai_type}")
 
-        elif content_type == "start_game":
+        elif isinstance(msg, pb.StartGame):
             logger.debug("Marking game as started")
             self.game_started = True
             self.game_started_time = float(timestamp)
