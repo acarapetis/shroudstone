@@ -88,6 +88,7 @@ enum LeaveReason {
    Unknown = 0;
    Surrender = 1;  // Player surrenders
    Leave = 2;      // Player leaves game normally (game ended earlier, if this is the first PlayerLeftGame message, the outcome should be considered unknown)
+   Disconnect = 3; // Player lost connection
 }
 
 // 25 - When a player exits the game/disconnects
@@ -99,6 +100,7 @@ message PlayerLeftGame {
 // 31 - sent by the server after a client disconnects
 message ClientDisconnected {
     int32 client_id = 1;
+    LeaveReason reason = 2;
     UUID player_uuid = 3;
 }
 

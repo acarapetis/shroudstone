@@ -221,6 +221,7 @@ class LeftGameReason(IntEnum):
     unknown = 0
     surrender = 1
     leave = 2
+    disconnect = 3
 
 
 class Client(BaseModel):
@@ -343,6 +344,7 @@ class GameState(BaseModel):
                 # Server telling us client disconnected without leaving cleanly
                 assert client.uuid == parse_uuid(msg.player_uuid)
                 client.left_game_time = timestamp
+                client.left_game_reason = LeftGameReason(msg.reason)
 
     def handle_change_slot(self, msg: pb.LobbyChangeSlot, client_id, **__):
         if not self.slots:

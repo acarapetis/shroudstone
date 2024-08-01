@@ -4,6 +4,7 @@ from google.protobuf import message as _message
 from typing import ClassVar as _ClassVar, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+Disconnect: LeaveReason
 Leave: LeaveReason
 Surrender: LeaveReason
 Unknown: LeaveReason
@@ -27,12 +28,14 @@ class ClientConnected(_message.Message):
     def __init__(self, client_id: _Optional[int] = ..., uuid: _Optional[_Union[UUID, _Mapping]] = ...) -> None: ...
 
 class ClientDisconnected(_message.Message):
-    __slots__ = ["client_id", "player_uuid"]
+    __slots__ = ["client_id", "player_uuid", "reason"]
     CLIENT_ID_FIELD_NUMBER: _ClassVar[int]
     PLAYER_UUID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
     client_id: int
     player_uuid: UUID
-    def __init__(self, client_id: _Optional[int] = ..., player_uuid: _Optional[_Union[UUID, _Mapping]] = ...) -> None: ...
+    reason: LeaveReason
+    def __init__(self, client_id: _Optional[int] = ..., reason: _Optional[_Union[LeaveReason, str]] = ..., player_uuid: _Optional[_Union[UUID, _Mapping]] = ...) -> None: ...
 
 class LobbyChangeSlot(_message.Message):
     __slots__ = ["choice"]
