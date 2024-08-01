@@ -98,9 +98,6 @@ If you downloaded the .exe, just download a new one to replace it!
 
 
 ## Notes
-
-- Shroudstone can currently only rename 1v1 ladder games - this is because it
-  relies on the Stormgate World API to fetch most of its information.
 - Stormgate names your replays using your local time. After renaming, the times
   will be in the UTC timezone, as on the Stormgate World leaderboard.
 - Your settings are saved in %LOCALAPPDATA%/shroudstone/config.json on Windows
