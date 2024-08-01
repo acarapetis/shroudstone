@@ -16,7 +16,7 @@ class ReplayCase(NamedTuple):
     expected_name_file: Path
 
 
-@pytest.fixture(params=list(data_dir.glob("**/*.SGReplay")))
+@pytest.fixture(params=list(data_dir.glob("**/*.SGReplay")), ids=lambda c: c.stem)
 def replay_case(request):
     path = request.param
     yield ReplayCase(
