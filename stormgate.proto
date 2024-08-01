@@ -14,11 +14,13 @@ message ReplayChunk {
         message ReplayContent {
             oneof content_type {
                 Map map = 3;
+                ClientConnected client_connected = 4;
                 Player player = 12;
                 LobbyChangeSlot change_slot = 13;
                 LobbySetVariable set_variable = 15;
                 StartGame start_game = 18;
                 PlayerLeftGame player_left_game = 25;
+                ClientDisconnected client_disconnected = 31;
                 AssignPlayerSlot assign_player_slot = 37;
             }
         }
@@ -27,13 +29,21 @@ message ReplayChunk {
     Wrapper inner = 3;
 }
 
-// 3 - Map
+// 3 - Map identifier + RNG seed
 message Map {
     string folder = 1;
     string name = 2;
     int32 seed = 3;
 }
 
+// 4 - sent by server after each player connects?
+// in new co-op replay it's the only way to link a player to their client_id.
+message ClientConnected {
+    int32 client_id = 1;
+    UUID uuid = 2;
+}
+
+// 12 - Sent by a player when they join a game
 message Player {
     UUID uuid = 2;
     message PlayerName {
@@ -84,6 +94,12 @@ enum LeaveReason {
 message PlayerLeftGame {
     UUID player_uuid = 1;
     LeaveReason reason = 2;
+}
+
+// 31 - sent by the server after a client disconnects
+message ClientDisconnected {
+    int32 client_id = 1;
+    UUID player_uuid = 3;
 }
 
 // 37 - AssignPlayer (done by server as pl=64)
