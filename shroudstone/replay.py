@@ -266,136 +266,134 @@ class GameState(BaseModel):
         """Update the state using a single replay chunk/command."""
         content = chunk.inner.content
         content_type = content.WhichOneof("content_type")
-        handler = getattr(self, f"handle_{content_type}", None)
-        if handler is not None:
-            handler(
-                getattr(content, content_type),
-                client_id=chunk.client_id,
-                timestamp=chunk.timestamp,
-            )
-
-    def handle_map(self, msg: pb.Map, **__):
-        self.map_name = msg.name
-        slot_count = player_slot_count[msg.name]
-        logger.debug(f"Setting up {slot_count} slots for map {msg.name}")
-        for i in range(1, slot_count + 1):
-            self.slots[i] = Slot()
-
-    def handle_assign_player_slot(self, msg: pb.AssignPlayerSlot, **__):
-        self.slot_assignments[parse_uuid(msg.uuid)] = SlotAssignment(
-            slot_number=msg.slot, nickname=msg.nickname
-        )
-        logger.debug(f"Assigning slot {msg.slot} to {msg.uuid}")
-
-    def handle_player(self, msg: pb.Player, client_id, **__):
-        self.clients[client_id] = client = Client(
-            client_id=client_id,
-            uuid=parse_uuid(msg.uuid),
-            nickname=msg.name.nickname,
-            discriminator=msg.name.discriminator,
-        )
-        logger.debug(f"Setting up player {client_id}: {client.nickname} {client.uuid}")
-        # If we're in a matchmaking game, the server has pre-assigned a slot for the player:
-        if (assignment := self.slot_assignments.get(client.uuid)) is not None:
-            client.slot_number = assignment.slot_number
-            self.slots[assignment.slot_number].client_id = client_id
-            logger.debug(
-                f"Putting player {client_id} in pre-assigned slot {client.slot_number}"
-            )
-
-    def handle_client_connected(self, msg: pb.ClientConnected, **__):
-        if not msg.HasField("uuid"):
-            # We should have already filled in the player details in handle_player,
-            # don't worry about it
+        if not content_type:
             return
-        self.clients[msg.client_id] = client = Client(
-            client_id=msg.client_id,
-            uuid=parse_uuid(msg.uuid),
-        )
-        logger.debug(f"Setting up player {client.client_id}: {client.uuid}")
-        if (assignment := self.slot_assignments.get(client.uuid)) is not None:
-            client.slot_number = assignment.slot_number
-            if client.nickname is not None:
-                assert client.nickname == assignment.nickname
-            else:
-                client.nickname = assignment.nickname
-            self.slots[assignment.slot_number].client_id = client.client_id
-            logger.debug(
-                f"Putting player {client.client_id} in pre-assigned slot {client.slot_number}"
+        msg = getattr(content, content_type)
+        client_id = chunk.client_id
+        timestamp = chunk.timestamp
+
+        if content_type == "map":
+            self.map_name = msg.name
+            slot_count = player_slot_count[msg.name]
+            logger.debug(f"Setting up {slot_count} slots for map {msg.name}")
+            for i in range(1, slot_count + 1):
+                self.slots[i] = Slot()
+
+        elif content_type == "assign_player_slot":
+            self.slot_assignments[parse_uuid(msg.uuid)] = SlotAssignment(
+                slot_number=msg.slot, nickname=msg.nickname
             )
+            logger.debug(f"Assigning slot {msg.slot} to {msg.uuid}")
 
-    def handle_player_left_game(self, msg: pb.PlayerLeftGame, client_id, timestamp):
-        if self.game_started:
-            self.clients[client_id].left_game_time = timestamp
-            self.clients[client_id].left_game_reason = LeftGameReason(msg.reason)
-        else:
-            client = self.clients.pop(client_id, None)
-            # In aborted ladder games, we sometimes get a left game before the player joined message
-            suffix = f": {client.nickname} {client.uuid}" if client is not None else ""
-            logger.debug(f"Removing player {client_id}: {suffix}")
-            for slot in self.slots.values():
-                if slot.client_id == client_id:
-                    slot.client_id = None
+        elif content_type == "player":
+            self.clients[client_id] = client = Client(
+                client_id=client_id,
+                uuid=parse_uuid(msg.uuid),
+                nickname=msg.name.nickname,
+                discriminator=msg.name.discriminator,
+            )
+            logger.debug(f"Setting up player {client_id}: {client.nickname} {client.uuid}")
+            # If we're in a matchmaking game, the server has pre-assigned a slot for the player:
+            if (assignment := self.slot_assignments.get(client.uuid)) is not None:
+                client.slot_number = assignment.slot_number
+                self.slots[assignment.slot_number].client_id = client_id
+                logger.debug(
+                    f"Putting player {client_id} in pre-assigned slot {client.slot_number}"
+                )
 
-    def handle_client_disconnected(self, msg: pb.ClientDisconnected, client_id, timestamp):
-        if self.game_started:
-            client = self.clients[msg.client_id]
-            if client.left_game_time is None:
-                # Server telling us client disconnected without leaving cleanly
-                assert client.uuid == parse_uuid(msg.player_uuid)
-                client.left_game_time = timestamp
-                client.left_game_reason = LeftGameReason(msg.reason)
+        elif content_type == "client_connected":
+            if not msg.HasField("uuid"):
+                # We should have already filled in the player details in handle_player,
+                # don't worry about it
+                return
+            self.clients[msg.client_id] = client = Client(
+                client_id=msg.client_id,
+                uuid=parse_uuid(msg.uuid),
+            )
+            logger.debug(f"Setting up player {client.client_id}: {client.uuid}")
+            if (assignment := self.slot_assignments.get(client.uuid)) is not None:
+                client.slot_number = assignment.slot_number
+                if client.nickname is not None:
+                    assert client.nickname == assignment.nickname
+                else:
+                    client.nickname = assignment.nickname
+                self.slots[assignment.slot_number].client_id = client.client_id
+                logger.debug(
+                    f"Putting player {client.client_id} in pre-assigned slot {client.slot_number}"
+                )
 
-    def handle_change_slot(self, msg: pb.LobbyChangeSlot, client_id, **__):
-        if not self.slots:
-            raise ReplayParsingError("Received slot change before map info?")
-        client = self.clients[client_id]
-        if client.slot_number is not None and client.slot_number != 255:
-            self.slots[client.slot_number].client_id = None
-        if msg.choice.WhichOneof("choice_type") == "specific_slot":
-            slot_number = msg.choice.specific_slot.slot
-        else:
-            # Client did not choose a specific slot, so they get the first open human slot
-            for slot_number, slot in self.slots.items():
-                if slot.type == SlotType.human and slot.client_id is None:
-                    break
+        elif content_type == "player_left_game":
+            if self.game_started:
+                self.clients[client_id].left_game_time = timestamp
+                self.clients[client_id].left_game_reason = LeftGameReason(msg.reason)
             else:
-                # No open slots, become spectator
-                slot_number = 255
-        client.slot_number = slot_number
-        if slot_number != 255:
-            slot = self.slots[slot_number]
-            if slot.type != SlotType.human:
-                raise ReplayParsingError("Client assigned to non-human slot?")
-            if slot.client_id is not None:
-                raise ReplayParsingError("Client assigned to already occupied slot?")
-            slot.client_id = client_id
-            logger.debug(f"Putting player {client_id} in slot {slot_number}")
+                client = self.clients.pop(client_id, None)
+                # In aborted ladder games, we sometimes get a left game before the player joined message
+                suffix = f": {client.nickname} {client.uuid}" if client is not None else ""
+                logger.debug(f"Removing player {client_id}: {suffix}")
+                for slot in self.slots.values():
+                    if slot.client_id == client_id:
+                        slot.client_id = None
 
-    def handle_set_variable(self, msg: pb.LobbySetVariable, **__):
-        slot = self.slots[msg.slot]
-        key = msg.variable_id
-        value = msg.value
-        if key == 374945738:
-            slot.type = SlotType(value)
-            logger.debug(f"Set slot[{msg.slot}].type = {slot.type}")
-            if slot.type == SlotType.ai:
-                slot.ai_type = AIType(0)
+        elif content_type == "client_disconnected":
+            if self.game_started:
+                client = self.clients[msg.client_id]
+                if client.left_game_time is None:
+                    # Server telling us client disconnected without leaving cleanly
+                    assert client.uuid == parse_uuid(msg.player_uuid)
+                    client.left_game_time = timestamp
+                    client.left_game_reason = LeftGameReason(msg.reason)
+
+        elif content_type == "change_slot":
+            if not self.slots:
+                raise ReplayParsingError("Received slot change before map info?")
+            client = self.clients[client_id]
+            if client.slot_number is not None and client.slot_number != 255:
+                self.slots[client.slot_number].client_id = None
+            if msg.choice.WhichOneof("choice_type") == "specific_slot":
+                slot_number = msg.choice.specific_slot.slot
+            else:
+                # Client did not choose a specific slot, so they get the first open human slot
+                for slot_number, slot in self.slots.items():
+                    if slot.type == SlotType.human and slot.client_id is None:
+                        break
+                else:
+                    # No open slots, become spectator
+                    slot_number = 255
+            client.slot_number = slot_number
+            if slot_number != 255:
+                slot = self.slots[slot_number]
+                if slot.type != SlotType.human:
+                    raise ReplayParsingError("Client assigned to non-human slot?")
+                if slot.client_id is not None:
+                    raise ReplayParsingError("Client assigned to already occupied slot?")
+                slot.client_id = client_id
+                logger.debug(f"Putting player {client_id} in slot {slot_number}")
+
+        elif content_type == "set_variable":
+            slot = self.slots[msg.slot]
+            key = msg.variable_id
+            value = msg.value
+            if key == 374945738:
+                slot.type = SlotType(value)
+                logger.debug(f"Set slot[{msg.slot}].type = {slot.type}")
+                if slot.type == SlotType.ai:
+                    slot.ai_type = AIType(0)
+                    logger.debug(f"Set slot[{msg.slot}].ai_type = {slot.ai_type}")
+                else:
+                    slot.ai_type = None
+                    logger.debug(f"Set slot[{msg.slot}].ai_type = None")
+            elif key == 2952722564:
+                slot.faction = Faction(value)
+                logger.debug(f"Set slot[{msg.slot}].faction = {slot.faction}")
+            elif key == 655515685:
+                slot.ai_type = AIType(value)
                 logger.debug(f"Set slot[{msg.slot}].ai_type = {slot.ai_type}")
-            else:
-                slot.ai_type = None
-                logger.debug(f"Set slot[{msg.slot}].ai_type = None")
-        elif key == 2952722564:
-            slot.faction = Faction(value)
-            logger.debug(f"Set slot[{msg.slot}].faction = {slot.faction}")
-        elif key == 655515685:
-            slot.ai_type = AIType(value)
-            logger.debug(f"Set slot[{msg.slot}].ai_type = {slot.ai_type}")
 
-    def handle_start_game(self, _: pb.StartGame, timestamp, **__):
-        logger.debug("Marking game as started")
-        self.game_started = True
-        self.game_started_time = float(timestamp)
+        elif content_type == "start_game":
+            logger.debug("Marking game as started")
+            self.game_started = True
+            self.game_started_time = float(timestamp)
 
 
 class ReplayParsingError(Exception):
