@@ -31,12 +31,10 @@ message ReplayChunk {
 
 // 3 - Map identifier + RNG seed
 message MapDetailsRecord {
-   string MapFolder = 1;
-   string MapName = 2;
-   int32 MapSeed = 3;   // Is different every lobby, so probably some kind of seed
-   int64 Unknown5 = 5;
-   int64 Unknown6 = 6;
-   MatchType MatchType = 7;
+   string map_folder = 1;
+   string map_name = 2;
+   int32 map_seed = 3;   // Is different every lobby, so probably some kind of seed
+   MatchType match_type = 7;
 }
 
 enum MatchType {

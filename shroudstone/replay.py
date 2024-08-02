@@ -223,6 +223,12 @@ class LeftGameReason(IntEnum):
     leave = 2
     disconnect = 3
 
+class MatchType(IntEnum):
+    unknown = 0
+    custom = 1
+    ranked1v1 = 2
+    coop3ve = 3
+
 
 class Client(BaseModel):
     uuid: UUID
@@ -242,12 +248,11 @@ class SlotAssignment(BaseModel):
 def parse_uuid(uuid: pb.UUID) -> UUID:
     return UUID(bytes=struct.pack(">qq", uuid.part1, uuid.part2))
 
-
 class GameState(BaseModel):
     """Stormgate match state machine - reads commands from replay and updates state"""
 
     map_name: Optional[str] = None
-    match_type: Optional[str] = None
+    match_type: MatchType = MatchType.unknown
     slots: Dict[int, Slot] = {}
     clients: Dict[int, Client] = {}
     slot_assignments: Dict[UUID, SlotAssignment] = {}
@@ -274,25 +279,23 @@ class GameState(BaseModel):
         timestamp = chunk.timestamp
 
         if isinstance(msg, pb.MapDetailsRecord):
-            self.map_name = msg.MapName
-            match(msg.MatchType):
-                case (0 | 1): #Unknown or Custom
-                    self.match_type = "Unknown"
-                    slot_count = player_slot_count[msg.MapName] #Fall back to old sysyem
-                case 2: #Ranked 1v1
-                    self.match_type = "Ranked 1v1"
-                    slot_count = 2
-                case 3: #Coop3vE
-                    self.match_type = "Coop 3vE"
-                    slot_count = 3
-                case _:
-                    ReplayParsingError("Unknown Match Type")
+            self.map_name = msg.map_name
+            self.match_type = MatchType(msg.match_type)
+
+            if(self.match_type == MatchType.unknown or self.match_type == MatchType.custom):
+                slot_count = player_slot_count[msg.map_name] #Fall back to old sysyem
+            elif(self.match_type == MatchType.ranked1v1):
+                slot_count = 2
+            elif(self.match_type == MatchType.coop3ve):
+                slot_count = 3
+            else:
+                raise ReplayParsingError("Unknown Match Type")
 
             logger.debug(f"MatchType: {self.match_type}")
 
 
 
-            logger.debug(f"Setting up {slot_count} slots for map {msg.MapName}")
+            logger.debug(f"Setting up {slot_count} slots for map {self.map_name}")
             for i in range(1, slot_count + 1):
                 self.slots[i] = Slot()
 

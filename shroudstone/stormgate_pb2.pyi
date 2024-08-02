@@ -64,20 +64,16 @@ class ReplayChunk(_message.Message):
     def __init__(self, timestamp: _Optional[int] = ..., client_id: _Optional[int] = ..., inner: _Optional[_Union[ReplayChunk.Wrapper, _Mapping]] = ...) -> None: ...
 
 class MapDetailsRecord(_message.Message):
-    __slots__ = ("MapFolder", "MapName", "MapSeed", "Unknown5", "Unknown6", "MatchType")
-    MAPFOLDER_FIELD_NUMBER: _ClassVar[int]
-    MAPNAME_FIELD_NUMBER: _ClassVar[int]
-    MAPSEED_FIELD_NUMBER: _ClassVar[int]
-    UNKNOWN5_FIELD_NUMBER: _ClassVar[int]
-    UNKNOWN6_FIELD_NUMBER: _ClassVar[int]
-    MATCHTYPE_FIELD_NUMBER: _ClassVar[int]
-    MapFolder: str
-    MapName: str
-    MapSeed: int
-    Unknown5: int
-    Unknown6: int
-    MatchType: MatchType
-    def __init__(self, MapFolder: _Optional[str] = ..., MapName: _Optional[str] = ..., MapSeed: _Optional[int] = ..., Unknown5: _Optional[int] = ..., Unknown6: _Optional[int] = ..., MatchType: _Optional[_Union[MatchType, str]] = ...) -> None: ...
+    __slots__ = ("map_folder", "map_name", "map_seed", "match_type")
+    MAP_FOLDER_FIELD_NUMBER: _ClassVar[int]
+    MAP_NAME_FIELD_NUMBER: _ClassVar[int]
+    MAP_SEED_FIELD_NUMBER: _ClassVar[int]
+    MATCH_TYPE_FIELD_NUMBER: _ClassVar[int]
+    map_folder: str
+    map_name: str
+    map_seed: int
+    match_type: MatchType
+    def __init__(self, map_folder: _Optional[str] = ..., map_name: _Optional[str] = ..., map_seed: _Optional[int] = ..., match_type: _Optional[_Union[MatchType, str]] = ...) -> None: ...
 
 class ClientConnected(_message.Message):
     __slots__ = ("client_id", "uuid")
