@@ -1,0 +1,29 @@
+on:
+  push:
+    tags:
+      - "v*" # A version tag = a release
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    environment: release
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+        cache: pip
+    - name: Install shroudstone & flit
+      run: pip install flit -e .[test]
+    - name: Run tests
+      run: python -m pytest
+    - name: Build distribution
+      run: flit build
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      env:
+        name: pypi
+        url: https://pypi.org/p/shroudstone
+
