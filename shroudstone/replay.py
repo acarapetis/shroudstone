@@ -15,6 +15,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from . import stormgate_pb2 as pb
+from . import _replay
 
 logger = logging.getLogger(__name__)
 
@@ -102,32 +103,41 @@ class ReplaySummary(BaseModel):
     is_1v1_ladder_game: bool = False
 
 
-def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
+def _pyo3_enum_name(x) -> str:
+    # Hack until I work out how to write my own pyo3 macros
+    if x is None:
+        return None  # type: ignore
+    return repr(x).split(".")[1]
+
+
+def summarize_replay(replay: Path) -> ReplaySummary:
     """Parse what we can from a stormgate replay."""
     build_number = get_build_number(replay)
-    state = GameState.at_end_of(replay)
+    #state = GameState.at_end_of(replay)
+    state = _replay.simulate_replay_file(str(replay))
     info = ReplaySummary(
         build_number=build_number,
         map_name=state.map_name,
     )
+    clients = dict(state.clients)  # make a mutable copy
     if state.game_started_time is not None:
         first_left_game_time = min(
-            c.left_game_time or float("inf") for c in state.clients.values()
+            c.left_game_time or float("inf") for c in clients.values()
         )
         info.duration_seconds = (
             first_left_game_time - state.game_started_time
         ) * REPLAY_TIMESTAMP_UNIT
-    for slot in state.slots.values():
+    for _, slot in sorted(state.slots.items(), key=lambda t: t[0]):
         if slot.ai_type is not None:
             info.players.append(
                 Player(
-                    nickname=slot.ai_type.name,
+                    nickname=_pyo3_enum_name(slot.ai_type) or "UnknownBot",
                     is_ai=True,
-                    faction=slot.faction.name,
+                    faction=_pyo3_enum_name(slot.faction),
                 )
             )
         elif slot.client_id is not None:
-            client = state.clients.pop(slot.client_id)
+            client = clients.pop(slot.client_id)
             if client.nickname is None:
                 raise ReplayParsingError(
                     f"No nickname found for client {client.client_id} = {client.uuid}?"
@@ -138,7 +148,7 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                     nickname_discriminator=client.discriminator,
                     uuid=client.uuid,
                     is_ai=False,
-                    faction=slot.faction.name,
+                    faction=_pyo3_enum_name(slot.faction),
                 )
             )
             if (
@@ -148,8 +158,8 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                 p.disconnect_time = (
                     client.left_game_time - state.game_started_time
                 ) * REPLAY_TIMESTAMP_UNIT
-            p.leave_reason = client.left_game_reason.name
-    for client in state.clients.values():
+            p.leave_reason = _pyo3_enum_name(client.left_game_reason)
+    for client in clients.values():
         if client.slot_number != 255:
             raise ReplayParsingError("Player not in a slot but slot_number != 255?")
         if client.nickname is None:

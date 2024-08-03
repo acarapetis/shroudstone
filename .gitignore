@@ -1,4 +1,7 @@
 __pycache__/
 /build/
 /dist/
+/rust/target/
+/.venv/
 shroudstone.spec
+*.so

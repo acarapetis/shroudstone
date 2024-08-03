@@ -116,7 +116,7 @@ message ClientDisconnected {
 // Appears only in ladder games?
 message AssignPlayerSlot {
     UUID uuid = 1;
-    int64 slot = 2;
+    int32 slot = 2;
     string nickname = 3;
 }
 

@@ -1,6 +1,6 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "shroudstone"
@@ -9,7 +9,7 @@ authors = [{name = "Anthony Carapetis", email = "anthony.carapetis@gmail.com"}]
 license = {file = "LICENSE"}
 classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-    "Topic :: Games/Entertainment :: Real Time Strategy"
+    "Topic :: Games/Entertainment :: Real Time Strategy",
 ]
 keywords = ["Stormgate"]
 dynamic = ["version", "description"]
@@ -36,3 +36,8 @@ Source = "https://github.com/acarapetis/shroudstone"
 
 [project.scripts]
 shroudstone = "shroudstone.__main__:main"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "shroudstone._replay"
+manifest-path = "rust/Cargo.toml"
