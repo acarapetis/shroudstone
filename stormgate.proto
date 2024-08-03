@@ -121,10 +121,12 @@ message AssignPlayerSlot {
 }
 
 // UUIDs are encoded as 2 varints.
-// To recover the original UUID, encode these as signed 64-bit big-endian
+// To recover the original UUID, encode these as unsigned 64-bit big-endian
 // integers and concatenate the resulting bitstrings; or in python:
-// uuid.UUID(bytes=struct.pack(">qq", part1, part2))
+//     uuid.UUID(bytes=struct.pack(">QQ", part1, part2))
+// or equivalently
+//     uuid.UUID(int=(part1 << 64) | part2)
 message UUID {
-    int64 part1 = 1;
-    int64 part2 = 2;
+    uint64 part1 = 1;
+    uint64 part2 = 2;
 }

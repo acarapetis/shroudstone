@@ -251,7 +251,7 @@ class SlotAssignment(BaseModel):
 
 
 def parse_uuid(uuid: pb.UUID) -> UUID:
-    return UUID(bytes=struct.pack(">qq", uuid.part1, uuid.part2))
+    return UUID(bytes=struct.pack(">QQ", uuid.part1, uuid.part2))
 
 
 class GameState(BaseModel):
