@@ -13,7 +13,7 @@ message ReplayChunk {
     message Wrapper {
         message ReplayContent {
             oneof content_type {
-                Map map = 3;
+                MapDetailsRecord MapDetailsRecord = 3;
                 ClientConnected client_connected = 4;
                 Player player = 12;
                 LobbyChangeSlot change_slot = 13;
@@ -30,10 +30,18 @@ message ReplayChunk {
 }
 
 // 3 - Map identifier + RNG seed
-message Map {
-    string folder = 1;
-    string name = 2;
-    int32 seed = 3;
+message MapDetailsRecord {
+   string map_folder = 1;
+   string map_name = 2;
+   int32 map_seed = 3;   // Is different every lobby, so probably some kind of seed
+   MatchType match_type = 7;
+}
+
+enum MatchType {
+   UnknownMatchType = 0;
+   Custom = 1;
+   Ranked1v1 = 2;
+   Coop3vE = 3;
 }
 
 // 4 - sent by server after each player connects?
