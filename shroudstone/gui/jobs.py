@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import tkinter as tk
-from dataclasses import dataclass
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Callable, List
+from dataclasses import dataclass
+from typing import Callable, List
+
 from typing_extensions import Generic, ParamSpec, TypeVar
 
 

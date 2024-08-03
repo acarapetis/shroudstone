@@ -1,11 +1,11 @@
 """Persistent configuration stored in standard user data directories"""
-from enum import Enum
+
 import os
 import platform
-import yaml
 from pathlib import Path
 from typing import Optional
 
+import yaml
 from pydantic import BaseModel, ConfigDict
 
 
@@ -24,7 +24,9 @@ data_dir.mkdir(parents=True, exist_ok=True)
 config_file = data_dir / "config.yaml"
 
 DEFAULT_1v1_FORMAT = "{time:%Y-%m-%d %H.%M} {result:.1} {duration} {us} {f1:.1}v{f2:.1} {them} - {map_name}.SGReplay"
-DEFAULT_GENERIC_FORMAT = "{time:%Y-%m-%d %H.%M} {duration} {players_with_factions} - {map_name}.SGReplay"
+DEFAULT_GENERIC_FORMAT = (
+    "{time:%Y-%m-%d %H.%M} {duration} {players_with_factions} - {map_name}.SGReplay"
+)
 """Default format string for new 1v1 replay filenames"""
 
 

@@ -14,7 +14,12 @@ def setup_style(root):
         "Ubuntu", "DejaVu Sans", "Sans", "Segoe UI", "Helvetica"
     )
     mono = first_available_font(
-        "Iosevka", "DejaVu Sans Mono", "Ubuntu Mono", "Monaco", "Consolas", "Monospace",
+        "Iosevka",
+        "DejaVu Sans Mono",
+        "Ubuntu Mono",
+        "Monaco",
+        "Consolas",
+        "Monospace",
     )
     nametofont("TkDefaultFont").configure(family=sans)
     nametofont("TkFixedFont").configure(family=mono)

@@ -1,23 +1,25 @@
 """Rename stormgate replays to include useful info in filename"""
 
 from __future__ import annotations
-from collections import defaultdict
-from datetime import datetime, timedelta, timezone, tzinfo
+
+import logging
 import os
-import string
-from pathlib import Path
 import platform
 import re
-import logging
+import string
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone, tzinfo
+from pathlib import Path
 from shutil import copytree, rmtree
 from typing import Iterable, NamedTuple, Optional, Union
-from typing_extensions import Literal
 from uuid import UUID
+
 from packaging import version
+from typing_extensions import Literal
 
 from shroudstone import __version__
-from shroudstone.replay import Player, ReplaySummary, summarize_replay, FRIGATE
 from shroudstone.config import data_dir
+from shroudstone.replay import FRIGATE, Player, ReplaySummary, summarize_replay
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +46,7 @@ VALID_FIELDS = {
         "them",
         "f1",
         "f2",
-        "r1", # for backwards compat
+        "r1",  # for backwards compat
         "r2",
         "time",
         "duration",
@@ -59,7 +61,7 @@ VALID_FIELDS = {
         "duration",
         "map_name",
         "build_number",
-    ]
+    ],
 }
 
 
@@ -266,7 +268,6 @@ def get_result(replay: Replay):
             return "win"
 
 
-
 def new_name_for(replay: Replay, format_1v1: str, format_generic: str) -> str:
     parts = {}
     parts["map_name"] = replay.summary.map_name
@@ -299,13 +300,13 @@ def new_name_for(replay: Replay, format_1v1: str, format_generic: str) -> str:
             p.nickname.capitalize() for p in replay.summary.players
         )
         parts["players_with_factions"] = ", ".join(
-            f"{p.nickname.capitalize()} {(p.faction or '').upper():.1}" for p in replay.summary.players
+            f"{p.nickname.capitalize()} {(p.faction or '').upper():.1}"
+            for p in replay.summary.players
         )
         newname = format_generic.format(**parts)
 
     # In case we left some blanks, collapse multiple spaces to one space
     return re.sub(r"\s+", " ", newname)
-
 
 
 def do_rename(source: Path, target: Path, dry_run: bool):
@@ -350,8 +351,7 @@ def guess_replay_dir() -> Optional[Path]:
         # If this script is running on Linux and Stormgate is installed using
         # Steam+Proton, look in the steam compatdata:
         steammnt = (
-            Path.home()
-            / ".steam/root/steamapps/compatdata/2012510/pfx/dosdevices"
+            Path.home() / ".steam/root/steamapps/compatdata/2012510/pfx/dosdevices"
         )
 
         # If this script is running on the Windows Subsystem for Linux, we can
@@ -370,7 +370,9 @@ def guess_replay_dir() -> Optional[Path]:
             return path
 
 
-def validate_format_string(format: str, type: Union[Literal["1v1"], Literal["generic"]]):
+def validate_format_string(
+    format: str, type: Union[Literal["1v1"], Literal["generic"]]
+):
     parts = string.Formatter().parse(format)
     for _, field_name, _, _ in parts:
         if field_name is not None and field_name not in VALID_FIELDS[type]:

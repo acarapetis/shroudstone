@@ -1,9 +1,10 @@
 import logging
+
 from rich.console import Console
 from rich.logging import RichHandler
 
-
 _logging_configured: bool = False
+
 
 def configure_logging(debug: bool = False):
     global _logging_configured

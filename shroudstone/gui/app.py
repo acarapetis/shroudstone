@@ -1,24 +1,25 @@
 import dataclasses
+import logging
+import platform
+import tkinter as tk
 from functools import partial
 from pathlib import Path
-import platform
-from threading import Thread, Event, get_ident
-from typing import Optional
-from pystray import Icon, Menu, MenuItem
-from pystray._base import Icon as BaseIcon
-from PIL import Image
-import tkinter as tk
+from threading import Event, Thread, get_ident
 from tkinter import ttk
 from tkinter.filedialog import askdirectory
-from tkinter.messagebox import showinfo, showwarning, askyesno
+from tkinter.messagebox import askyesno, showinfo, showwarning
+from typing import Optional
 
-from shroudstone import config, renamer, __version__
+from PIL import Image
+from pystray import Icon, Menu, MenuItem
+from pystray._base import Icon as BaseIcon
+
+from shroudstone import __version__, config, renamer
 from shroudstone.gui.fonts import setup_style
 from shroudstone.gui.logview import LogView
 from shroudstone.logging import configure_logging
-from .jobs import TkWithJobs
 
-import logging
+from .jobs import TkWithJobs
 
 logger = logging.getLogger(__name__)
 assets_dir = Path(__file__).parent / "assets"
@@ -75,7 +76,7 @@ class App(TkWithJobs):
             title="Shroudstone - Exit?",
             message="You have autorenaming enabled, which will stop functioning if you exit the program.\n"
             "Consider enabling 'Minimize to tray' if you want to keep auto-renaming without this window open.\n\n"
-            "Are you sure you want to exit?\n"
+            "Are you sure you want to exit?\n",
         ):
             # Ask the tray icon to quit
             if self.systray_icon is not None:
@@ -91,6 +92,7 @@ class App(TkWithJobs):
 
     def _tray_icon_thread(self):
         state = self.vars
+
         def toggle_autorename():
             state.autorename.set(not state.autorename.get())
 
@@ -129,7 +131,6 @@ class App(TkWithJobs):
         logger.debug("icon.run done")
         self.tray_quit_event.set()
 
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.vars = AppState()
@@ -143,14 +144,15 @@ class App(TkWithJobs):
 
         # The systray icon passes this message back from its thread when it's done:
         self.tray_quit_event = Event()
+
         def _check_quit_event():
             if self.tray_quit_event.is_set():
                 self.quit_app()
             self.after(10, _check_quit_event)
+
         _check_quit_event()
 
         self.setup_tray_icon()
-
 
 
 # TODO: Move the following methods inside our custom App class?
@@ -219,6 +221,7 @@ def rename_replays_wrapper(*args, **kwargs):
 
 def create_main_ui(root: App, cfg: config.Config):
     state = root.vars
+
     def reload_config():
         nonlocal cfg
         cfg = config.Config.load()
@@ -359,6 +362,7 @@ def create_main_ui(root: App, cfg: config.Config):
     load_config.pack(side="right", fill="both", padx=3, pady=3)
 
     renaming = False
+
     def rename_replays(auto: bool = False):
         nonlocal renaming
         if renaming:
@@ -446,10 +450,14 @@ def create_main_ui(root: App, cfg: config.Config):
     ).pack(side="left", padx=5, pady=5)
 
     ttk.Checkbutton(
-        gui_toggles, text="Show Log when auto-renaming", variable=state.show_log_on_autorename
+        gui_toggles,
+        text="Show Log when auto-renaming",
+        variable=state.show_log_on_autorename,
     ).pack(side="left", padx=5, pady=5)
 
-    ttk.Button(gui_toggles, text="Exit", command=root.request_exit).pack(side="right", padx=5, pady=5)
+    ttk.Button(gui_toggles, text="Exit", command=root.request_exit).pack(
+        side="right", padx=5, pady=5
+    )
 
     @state.replay_dir.on_change
     def _(*_):

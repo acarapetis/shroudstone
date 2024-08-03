@@ -1,9 +1,8 @@
-import tkinter as tk
-from tkinter.font import Font, nametofont
-from tkinter.scrolledtext import ScrolledText
-import traceback
-from queue import Empty, Queue
 import logging
+import tkinter as tk
+from queue import Empty, Queue
+from tkinter.font import Font
+from tkinter.scrolledtext import ScrolledText
 
 from .fonts import first_available_font
 

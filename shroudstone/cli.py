@@ -5,17 +5,22 @@ options or [b]rename-replays[/b] to jump straight in."""
 
 import logging
 import os
-from pathlib import Path
 import platform
 import subprocess
 import sys
+from pathlib import Path
 from typing import Optional
-from typing_extensions import Annotated
 
 import typer
+from typing_extensions import Annotated
 
 from shroudstone import __version__
-from shroudstone.config import DEFAULT_GENERIC_FORMAT, Config, config_file, DEFAULT_1v1_FORMAT
+from shroudstone.config import (
+    DEFAULT_GENERIC_FORMAT,
+    Config,
+    DEFAULT_1v1_FORMAT,
+    config_file,
+)
 from shroudstone.logging import configure_logging
 
 app = typer.Typer(rich_markup_mode="rich", help=sys.modules[__name__].__doc__)

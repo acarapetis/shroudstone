@@ -1,20 +1,20 @@
 """Stormgate replay parsing tools"""
 
 from __future__ import annotations
+
+import gzip
+import logging
+import struct
 from collections import defaultdict
 from contextlib import contextmanager
 from enum import IntEnum
-import gzip
 from pathlib import Path
-import struct
 from typing import BinaryIO, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel
 
 from . import stormgate_pb2 as pb
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,9 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
         elif slot.client_id is not None:
             client = state.clients.pop(slot.client_id)
             if client.nickname is None:
-                raise ReplayParsingError(f"No nickname found for client {client.client_id} = {client.uuid}?")
+                raise ReplayParsingError(
+                    f"No nickname found for client {client.client_id} = {client.uuid}?"
+                )
             info.players.append(
                 p := Player(
                     nickname=client.nickname,
@@ -151,7 +153,9 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
         if client.slot_number != 255:
             raise ReplayParsingError("Player not in a slot but slot_number != 255?")
         if client.nickname is None:
-            raise ReplayParsingError(f"No nickname found for client {client.client_id} = {client.uuid}?")
+            raise ReplayParsingError(
+                f"No nickname found for client {client.client_id} = {client.uuid}?"
+            )
         info.spectators.append(
             Spectator(
                 nickname=client.nickname,
@@ -159,7 +163,7 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                 uuid=client.uuid,
             )
         )
-    info.is_1v1_ladder_game = ( #TODO: Can we update this with the match type?
+    info.is_1v1_ladder_game = (  # TODO: Can we update this with the match type?
         len(info.players) == 2
         and len(info.spectators) == 0
         and len(state.slot_assignments) > 0
@@ -223,6 +227,7 @@ class LeftGameReason(IntEnum):
     leave = 2
     disconnect = 3
 
+
 class MatchType(IntEnum):
     unknown = 0
     custom = 1
@@ -247,6 +252,7 @@ class SlotAssignment(BaseModel):
 
 def parse_uuid(uuid: pb.UUID) -> UUID:
     return UUID(bytes=struct.pack(">qq", uuid.part1, uuid.part2))
+
 
 class GameState(BaseModel):
     """Stormgate match state machine - reads commands from replay and updates state"""
@@ -282,18 +288,19 @@ class GameState(BaseModel):
             self.map_name = msg.map_name
             self.match_type = MatchType(msg.match_type)
 
-            if(self.match_type == MatchType.unknown or self.match_type == MatchType.custom):
-                slot_count = player_slot_count[msg.map_name] #Fall back to old sysyem
-            elif(self.match_type == MatchType.ranked1v1):
+            if (
+                self.match_type == MatchType.unknown
+                or self.match_type == MatchType.custom
+            ):
+                slot_count = player_slot_count[msg.map_name]  # Fall back to old sysyem
+            elif self.match_type == MatchType.ranked1v1:
                 slot_count = 2
-            elif(self.match_type == MatchType.coop3ve):
+            elif self.match_type == MatchType.coop3ve:
                 slot_count = 3
             else:
                 raise ReplayParsingError("Unknown Match Type")
 
             logger.debug(f"MatchType: {self.match_type}")
-
-
 
             logger.debug(f"Setting up {slot_count} slots for map {self.map_name}")
             for i in range(1, slot_count + 1):
@@ -312,7 +319,9 @@ class GameState(BaseModel):
                 nickname=msg.name.nickname,
                 discriminator=msg.name.discriminator,
             )
-            logger.debug(f"Setting up player {client_id}: {client.nickname} {client.uuid}")
+            logger.debug(
+                f"Setting up player {client_id}: {client.nickname} {client.uuid}"
+            )
             # If we're in a matchmaking game, the server has pre-assigned a slot for the player:
             if (assignment := self.slot_assignments.get(client.uuid)) is not None:
                 client.slot_number = assignment.slot_number
@@ -349,7 +358,9 @@ class GameState(BaseModel):
             else:
                 client = self.clients.pop(client_id, None)
                 # In aborted ladder games, we sometimes get a left game before the player joined message
-                suffix = f": {client.nickname} {client.uuid}" if client is not None else ""
+                suffix = (
+                    f": {client.nickname} {client.uuid}" if client is not None else ""
+                )
                 logger.debug(f"Removing player {client_id}: {suffix}")
                 for slot in self.slots.values():
                     if slot.client_id == client_id:
@@ -386,7 +397,9 @@ class GameState(BaseModel):
                 if slot.type != SlotType.human:
                     raise ReplayParsingError("Client assigned to non-human slot?")
                 if slot.client_id is not None:
-                    raise ReplayParsingError("Client assigned to already occupied slot?")
+                    raise ReplayParsingError(
+                        "Client assigned to already occupied slot?"
+                    )
                 slot.client_id = client_id
                 logger.debug(f"Putting player {client_id} in slot {slot_number}")
 
