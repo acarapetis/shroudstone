@@ -288,17 +288,12 @@ class GameState(BaseModel):
             self.map_name = msg.map_name
             self.match_type = MatchType(msg.match_type)
 
-            if (
-                self.match_type == MatchType.unknown
-                or self.match_type == MatchType.custom
-            ):
-                slot_count = player_slot_count[msg.map_name]  # Fall back to old sysyem
-            elif self.match_type == MatchType.ranked1v1:
+            if self.match_type == MatchType.ranked1v1:
                 slot_count = 2
             elif self.match_type == MatchType.coop3ve:
                 slot_count = 3
             else:
-                raise ReplayParsingError("Unknown Match Type")
+                slot_count = player_slot_count[msg.map_name]  # Fall back to old sysyem
 
             logger.debug(f"MatchType: {self.match_type}")
 
