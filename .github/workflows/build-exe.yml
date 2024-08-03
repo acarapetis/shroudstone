@@ -1,3 +1,4 @@
+name: Build .exe
 on:
   push:
     tags:
