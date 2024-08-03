@@ -284,7 +284,7 @@ class GameState(BaseModel):
         client_id = chunk.client_id
         timestamp = chunk.timestamp
 
-        if isinstance(msg, pb.MapDetailsRecord):
+        if isinstance(msg, pb.MapDetails):
             self.map_name = msg.map_name
             self.match_type = MatchType(msg.match_type)
 

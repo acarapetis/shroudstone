@@ -13,7 +13,7 @@ message ReplayChunk {
     message Wrapper {
         message ReplayContent {
             oneof content_type {
-                MapDetailsRecord MapDetailsRecord = 3;
+                MapDetails map_details = 3;
                 ClientConnected client_connected = 4;
                 Player player = 12;
                 LobbyChangeSlot change_slot = 13;
@@ -30,7 +30,7 @@ message ReplayChunk {
 }
 
 // 3 - Map identifier + RNG seed
-message MapDetailsRecord {
+message MapDetails {
    string map_folder = 1;
    string map_name = 2;
    int32 map_seed = 3;   // Is different every lobby, so probably some kind of seed
@@ -93,7 +93,7 @@ message StartGame {
 
 
 enum LeaveReason {
-   Unknown = 0;
+   UnknownReason = 0;
    Surrender = 1;  // Player surrenders
    Leave = 2;      // Player leaves game normally (game ended earlier, if this is the first PlayerLeftGame message, the outcome should be considered unknown)
    Disconnect = 3; // Player lost connection
