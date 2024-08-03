@@ -190,20 +190,20 @@ player_slot_count: Dict[str, int] = defaultdict(
 
 
 class SlotType(IntEnum):
-    closed = 0
-    human = 1
-    ai = 2
+    Closed = 0
+    Human = 1
+    Ai = 2
 
 
 class Faction(IntEnum):
-    vanguard = 0
-    infernals = 1
-    celestial = 2
-    blockade = 101
-    amara = 102
-    maloc = 201
-    warz = 202
-    auralanna = 301
+    Vanguard = 0
+    Infernals = 1
+    Celestial = 2
+    Blockade = 101
+    Amara = 102
+    Maloc = 201
+    Warz = 202
+    Auralanna = 301
 
 
 class AIType(IntEnum):
@@ -213,7 +213,7 @@ class AIType(IntEnum):
 
 
 class Slot(BaseModel):
-    type: SlotType = SlotType.human
+    type: SlotType = SlotType.Human
     faction: Faction = Faction(0)
     ai_type: Optional[AIType] = None
     client_id: Optional[int] = None
@@ -222,17 +222,17 @@ class Slot(BaseModel):
 # The python protobuf bindings don't use standard python enums - they just return ints.
 # I want nice type hints so I'm just going to maintain this manually.
 class LeftGameReason(IntEnum):
-    unknown = 0
-    surrender = 1
-    leave = 2
-    disconnect = 3
+    Unknown = 0
+    Surrender = 1
+    Leave = 2
+    Disconnect = 3
 
 
 class MatchType(IntEnum):
-    unknown = 0
-    custom = 1
-    ranked1v1 = 2
-    coop3ve = 3
+    Unknown = 0
+    Custom = 1
+    Ranked1v1 = 2
+    Coop3ve = 3
 
 
 class Client(BaseModel):
@@ -242,7 +242,7 @@ class Client(BaseModel):
     discriminator: Optional[str] = None
     slot_number: Optional[int] = None  # 255 means spectator
     left_game_time: Optional[float] = None
-    left_game_reason: LeftGameReason = LeftGameReason.unknown
+    left_game_reason: LeftGameReason = LeftGameReason.Unknown
 
 
 class SlotAssignment(BaseModel):
@@ -258,7 +258,7 @@ class GameState(BaseModel):
     """Stormgate match state machine - reads commands from replay and updates state"""
 
     map_name: Optional[str] = None
-    match_type: MatchType = MatchType.unknown
+    match_type: MatchType = MatchType.Unknown
     slots: Dict[int, Slot] = {}
     clients: Dict[int, Client] = {}
     slot_assignments: Dict[UUID, SlotAssignment] = {}
@@ -288,9 +288,9 @@ class GameState(BaseModel):
             self.map_name = msg.map_name
             self.match_type = MatchType(msg.match_type)
 
-            if self.match_type == MatchType.ranked1v1:
+            if self.match_type == MatchType.Ranked1v1:
                 slot_count = 2
-            elif self.match_type == MatchType.coop3ve:
+            elif self.match_type == MatchType.Coop3ve:
                 slot_count = 3
             else:
                 slot_count = player_slot_count[msg.map_name]  # Fall back to old sysyem
@@ -381,7 +381,7 @@ class GameState(BaseModel):
             else:
                 # Client did not choose a specific slot, so they get the first open human slot
                 for slot_number, slot in self.slots.items():
-                    if slot.type == SlotType.human and slot.client_id is None:
+                    if slot.type == SlotType.Human and slot.client_id is None:
                         break
                 else:
                     # No open slots, become spectator
@@ -389,7 +389,7 @@ class GameState(BaseModel):
             client.slot_number = slot_number
             if slot_number != 255:
                 slot = self.slots[slot_number]
-                if slot.type != SlotType.human:
+                if slot.type != SlotType.Human:
                     raise ReplayParsingError("Client assigned to non-human slot?")
                 if slot.client_id is not None:
                     raise ReplayParsingError(
@@ -405,7 +405,7 @@ class GameState(BaseModel):
             if key == 374945738:
                 slot.type = SlotType(value)
                 logger.debug(f"Set slot[{msg.slot}].type = {slot.type}")
-                if slot.type == SlotType.ai:
+                if slot.type == SlotType.Ai:
                     slot.ai_type = AIType(0)
                     logger.debug(f"Set slot[{msg.slot}].ai_type = {slot.ai_type}")
                 else:
