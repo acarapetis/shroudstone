@@ -2,6 +2,8 @@ name: Build & publish to PyPI
 
 on:
   push:
+    branches:
+      - maturin-build
     tags:
       - "v*" # A version tag = a release
 
