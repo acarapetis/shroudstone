@@ -1,28 +1,38 @@
 use flate2::read::GzDecoder;
+use log::{debug, error};
 use num_enum::TryFromPrimitive;
 use protobuf::Message;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-use stormgate::MatchType;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::{self, Read, Seek};
+use std::io::{self, BufReader, Read, Seek};
+use stormgate::MatchType;
 use varint_rs::VarintReader;
-use log::debug;
+use protobuf::varint::decode;
 
 mod stormgate;
-use stormgate::replay_chunk::wrapper::replay_content::Content_type as CT;
 use stormgate::lobby_change_slot::slot_choice::Choice_type;
+use stormgate::replay_chunk::wrapper::replay_content::Content_type as CT;
 
 mod gamestate;
 use gamestate::*;
 
 struct ReplayFile {
-    decompressed_stream: GzDecoder<File>,
+    stream: Box<dyn Read>,
     pub build_number: i32,
 }
 
 impl ReplayFile {
+    /// Open an unzipped replay file (i.e. the result of tail -c +17 blah.SGReplay | zcat).
+    pub fn open_unzipped(path: String) -> Result<Self, io::Error> {
+        Ok(Self {
+            stream: Box::new(BufReader::new(File::open(path)?)),
+            build_number: 0,
+        })
+    }
+
+    /// Open a standard .SGReplay file.
     pub fn open(path: String) -> Result<Self, io::Error> {
         let mut f = File::open(path)?;
         f.seek(io::SeekFrom::Start(12))?;
@@ -33,9 +43,8 @@ impl ReplayFile {
         };
         f.seek(io::SeekFrom::Start(16))?;
 
-        let decompressed_stream = GzDecoder::new(f);
         Ok(Self {
-            decompressed_stream,
+            stream: Box::new(GzDecoder::new(f)),
             build_number,
         })
     }
@@ -45,10 +54,13 @@ impl Iterator for ReplayFile {
     type Item = stormgate::ReplayChunk;
     fn next(&mut self) -> Option<Self::Item> {
         // let len = self.decompressed_stream.read_usize_varint().ok()?;
-        match self.decompressed_stream.read_usize_varint() {
+        match self.stream.read_usize_varint() {
             Ok(len) => {
+                // This buffer-less implementation was actually slower in optimized builds:
+                //   let mut chunk = (&mut self.stream).take(len);
+                //   Some(stormgate::ReplayChunk::parse_from_reader(&mut chunk).unwrap())
                 let mut buf = vec![0; len];
-                self.decompressed_stream.read_exact(&mut buf).unwrap();
+                self.stream.read_exact(&mut buf).unwrap();
                 Some(stormgate::ReplayChunk::parse_from_bytes(&buf).unwrap())
             }
             Err(e) => {
@@ -92,21 +104,11 @@ fn simulate(replay: ReplayFile) -> Result<GameState, String> {
                 );
             }
             CT::Player(mut m) => {
-                let Some(uuid) = m.uuid.take() else {
-                    continue;
-                };
-                let (nickname, discriminator) = match m.name.take() {
+                let Some(uuid) = m.uuid.take() else { continue };
+                let mut client = Client::new(client_id, uuid);
+                (client.nickname, client.discriminator) = match m.name.take() {
                     Some(c) => (Some(c.nickname), Some(c.discriminator)),
                     None => (None, None),
-                };
-                let mut client = Client {
-                    client_id,
-                    uuid,
-                    discriminator,
-                    nickname,
-                    slot_number: None,
-                    left_game_reason: LeaveReason::Unknown,
-                    left_game_time: None,
                 };
                 if let Some(assignment) = state.slot_assignments.get(&client.uuid) {
                     client.slot_number = Some(assignment.slot_number);
@@ -116,24 +118,14 @@ fn simulate(replay: ReplayFile) -> Result<GameState, String> {
                 state.clients.insert(client_id, client);
             }
             CT::ClientConnected(mut m) => {
-                let Some(uuid) = m.uuid.take() else {
-                    continue;
-                };
-                let mut client = Client {
-                    client_id: m.client_id,
-                    uuid,
-                    nickname: None,
-                    discriminator: None,
-                    slot_number: None,
-                    left_game_reason: LeaveReason::Unknown,
-                    left_game_time: None,
-                };
+                let Some(uuid) = m.uuid.take() else { continue };
+                let mut client = Client::new(m.client_id, uuid);
                 if let Some(assignment) = state.slot_assignments.get(&client.uuid) {
                     client.slot_number = Some(assignment.slot_number);
                     if client.nickname.is_none() {
                         client.nickname = Some(assignment.nickname.clone());
                     } else {
-                        //assert_eq!(client.nickname.unwrap(), assignment.nickname);
+                        assert_eq!(client.nickname.clone().unwrap(), assignment.nickname);
                     }
                     if let Some(slot) = state.slots.get_mut(&assignment.slot_number) {
                         slot.client_id = Some(client.client_id);
@@ -143,20 +135,29 @@ fn simulate(replay: ReplayFile) -> Result<GameState, String> {
             }
             CT::PlayerLeftGame(m) => {
                 if state.game_started {
-                    if let Some(client) = state.clients.get_mut(&client_id) {
-                        client.left_game_time = Some(timestamp);
-                        client.left_game_reason = m.reason.enum_value_or_default().into();
+                    if let Some(c) = state.clients.get_mut(&client_id) {
+                        c.left_game_time = Some(timestamp);
+                        c.left_game_reason = m.reason.enum_value_or_default().into();
+                        debug!(
+                            "Client {} ({:?}) left game ({:?}) at timestamp {:?}",
+                            client_id, c.nickname, c.left_game_reason, c.uuid
+                        );
                     }
                 } else {
-                    let client = state.clients.remove(&client_id);
-                    let suffix = if let Some(c) = &client {
-                        format!(": {} {}", c.nickname.clone().unwrap_or_default(), c.uuid)
+                    if let Some(c) = state.clients.remove(&client_id) {
+                        debug!(
+                            "Client {} ({:?} {}) left game during lobby; removing them",
+                            client_id, c.nickname, c.uuid
+                        );
                     } else {
-                        String::new()
-                    };
-                    debug!("Removing player {}{}", client_id, suffix);
-                    for slot in state.slots.values_mut() {
+                        error!(
+                            "Received PlayerLeftGame for unknown client id={}?",
+                            client_id
+                        );
+                    }
+                    for (id, slot) in state.slots.iter_mut() {
                         if slot.client_id == Some(client_id) {
+                            debug!("Marking slot {} as available", id);
                             slot.client_id = None;
                         }
                     }
@@ -164,11 +165,15 @@ fn simulate(replay: ReplayFile) -> Result<GameState, String> {
             }
             CT::ClientDisconnected(m) => {
                 if state.game_started {
-                    if let Some(client) = state.clients.get_mut(&m.client_id) {
-                        if client.left_game_time.is_none() {
-                            assert_eq!(client.uuid, m.player_uuid.unwrap());
-                            client.left_game_time = Some(timestamp);
-                            client.left_game_reason = m.reason.enum_value_or_default().into();
+                    if let Some(c) = state.clients.get_mut(&m.client_id) {
+                        if c.left_game_time.is_none() {
+                            assert_eq!(c.uuid, m.player_uuid.unwrap());
+                            c.left_game_time = Some(timestamp);
+                            c.left_game_reason = m.reason.enum_value_or_default().into();
+                            debug!(
+                                "Client {} ({:?}) disconnected ({:?}) at timestamp {:?}",
+                                c.client_id, c.nickname, c.left_game_reason, c.left_game_time,
+                            )
                         }
                     }
                 }
@@ -178,7 +183,7 @@ fn simulate(replay: ReplayFile) -> Result<GameState, String> {
                     return Err("Received slot change before map info?".into());
                 }
                 let Some(client) = state.clients.get_mut(&client_id) else {
-                    return Err(format!("Unknown client {}", client_id))
+                    return Err(format!("Unknown client {}", client_id));
                 };
                 if let Some(slot_number) = client.slot_number {
                     if slot_number != 255 {
@@ -220,17 +225,25 @@ fn simulate(replay: ReplayFile) -> Result<GameState, String> {
                                 SlotType::Ai => Some(AIType::PeacefulBot),
                                 _ => None,
                             };
+                        } else {
+                            error!("Unknown slot type code {}", m.value)
                         }
                     }
                     2952722564 => {
                         if let Ok(v) = Faction::try_from_primitive(m.value) {
                             slot.faction = v;
                             debug!("Set slot[{}].faction = {:?}", m.slot, slot.faction);
+                        } else {
+                            error!("Unknown Faction value {}", m.value)
                         }
                     }
                     655515685 => {
-                        slot.ai_type = m.value.try_into().ok();
-                        debug!("Set slot[{}].ai_type = {:?}", m.slot, slot.ai_type);
+                        if let Ok(v) = AIType::try_from_primitive(m.value) {
+                            slot.ai_type = Some(v);
+                            debug!("Set slot[{}].ai_type = {:?}", m.slot, v);
+                        } else {
+                            error!("Unknown AIType value {}", m.value)
+                        }
                     }
                     _ => {}
                 }
@@ -244,14 +257,27 @@ fn simulate(replay: ReplayFile) -> Result<GameState, String> {
     Ok(state)
 }
 
-#[pyfunction]
-fn simulate_replay_file(path: String) -> PyResult<GameState> {
-    let replay = ReplayFile::open(path)?;
+#[pyfunction(signature=(path, gzipped=true))]
+fn simulate_replay_file(path: String, gzipped: bool) -> PyResult<GameState> {
+    let replay = if gzipped {
+        ReplayFile::open(path)?
+    } else {
+        ReplayFile::open_unzipped(path)?
+    };
     debug!("Build number: {}", replay.build_number);
     match simulate(replay) {
         Ok(state) => Ok(state),
         Err(s) => Err(PyRuntimeError::new_err(s)),
     }
+}
+
+#[pyfunction(signature=(paths, gzipped=true))]
+fn simulate_replay_files(paths: Vec<String>, gzipped: bool) -> Vec<GameState> {
+    paths
+        .into_iter()
+        .map(|f| simulate_replay_file(f, gzipped))
+        .filter_map(PyResult::ok)
+        .collect()
 }
 
 fn take_content(mut chunk: stormgate::ReplayChunk) -> Option<CT> {
@@ -272,6 +298,7 @@ fn first_open_human_slot(slots: &BTreeMap<i32, Slot>) -> i32 {
 fn _replay(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
     m.add_function(wrap_pyfunction!(simulate_replay_file, m)?)?;
+    m.add_function(wrap_pyfunction!(simulate_replay_files, m)?)?;
     m.add_class::<gamestate::SlotType>()?;
     m.add_class::<gamestate::Faction>()?;
     m.add_class::<gamestate::AIType>()?;

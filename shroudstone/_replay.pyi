@@ -1,4 +1,4 @@
-from typing import ClassVar, Dict, Optional
+from typing import ClassVar, Dict, List, Optional
 from uuid import UUID
 
 
@@ -71,4 +71,5 @@ class GameState:
     game_started_time: Optional[float]
 
 
-def simulate_replay_file(path: str) -> GameState: ...
+def simulate_replay_file(path: str, gzipped: bool = True) -> GameState: ...
+def simulate_replay_files(paths: List[str], gzipped: bool = True) -> List[GameState]: ...

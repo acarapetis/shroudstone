@@ -114,7 +114,11 @@ def summarize_replay(replay: Path) -> ReplaySummary:
     """Parse what we can from a stormgate replay."""
     build_number = get_build_number(replay)
     #state = GameState.at_end_of(replay)
-    state = _replay.simulate_replay_file(str(replay))
+    state = _replay.simulate_replay_file(str(replay), gzipped=True)
+    return summary_from_state(state, build_number)
+
+
+def summary_from_state(state: _replay.GameState, build_number: int) -> ReplaySummary:
     info = ReplaySummary(
         build_number=build_number,
         map_name=state.map_name,

@@ -123,6 +123,20 @@ pub struct Client {
     #[pyo3(get)]
     pub left_game_reason: LeaveReason,
 }
+impl Client {
+    pub fn new(client_id: i32, uuid: stormgate::UUID) -> Self {
+        Client {
+            client_id,
+            uuid,
+            nickname: None,
+            discriminator: None,
+            slot_number: None,
+            left_game_reason: LeaveReason::Unknown,
+            left_game_time: None,
+        }
+    }
+}
+
 
 #[pyclass]
 #[derive(Debug, Clone)]
