@@ -300,7 +300,9 @@ def new_name_for(replay: Replay, format_1v1: str, format_generic: str) -> str:
         newname = format_generic.format(**parts)
 
     # In case we left some blanks, collapse multiple spaces to one space
-    return re.sub(r"\s+", " ", newname)
+    newname = re.sub(r"\s+", " ", newname)
+
+    return sanitize_filename(newname)
 
 
 def do_rename(source: Path, target: Path, dry_run: bool):
@@ -320,15 +322,7 @@ def do_rename(source: Path, target: Path, dry_run: bool):
     try:
         source.rename(target)
     except Exception as e:
-        # In case the error was due to weird characters in a player name:
-        new_name = sanitize_filename(target.name)
-        if new_name != target.name:
-            logger.warning(
-                f"Error renaming {source} => {target.name}, retrying with sanitized filename."
-            )
-            do_rename(source, target.parent / new_name, dry_run=dry_run)
-        else:
-            logger.error(f"Error renaming {source} => {target.name}: {e}")
+        logger.error(f"Error renaming {source} => {target.name}: {e}")
 
 
 def sanitize_filename(filename: str) -> str:
