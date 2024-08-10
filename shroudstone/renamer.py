@@ -8,6 +8,7 @@ import platform
 import re
 import string
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta, timezone, tzinfo
 from pathlib import Path
 from shutil import copytree, rmtree
@@ -75,6 +76,12 @@ def migrate():
         rmtree(data_dir / "stormgateworld-cache", ignore_errors=True)
     last_run_version_file.write_text(__version__, encoding="utf-8")
 
+def _try_parse(path: Path):
+    try:
+        return Replay.from_path(path)
+    except Exception:
+        logger.exception(f"Unexpected error parsing {path}")
+
 
 def rename_replays(
     replay_dir: Path,
@@ -111,13 +118,9 @@ def rename_replays(
 
         files = replay_dir.glob(pattern)
 
-    def try_parse(path: Path):
-        try:
-            return Replay.from_path(path)
-        except Exception:
-            logger.exception(f"Unexpected error parsing {path}")
+    with ProcessPoolExecutor() as pool:
+        replays = [x for x in pool.map(_try_parse, files) if x is not None]
 
-    replays = [x for x in map(try_parse, files) if x is not None]
     if not replays:
         logger.warning(
             "No new replays found to rename! "
