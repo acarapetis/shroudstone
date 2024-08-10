@@ -169,12 +169,6 @@ def rename_replays(
     reprocess: Annotated[
         bool, typer.Option(help="Reprocess old replays that have already been renamed")
     ] = False,
-    clear_cache: Annotated[
-        bool,
-        typer.Option(
-            help="Clear the local match cache and re-retrieve all data from Stormgate World."
-        ),
-    ] = False,
 ):
     """Automatically rename your replay files.
 
@@ -203,8 +197,6 @@ def rename_replays(
     config = Config.load()
     if replay_dir is None:
         replay_dir = get_replay_dir(config)
-    if clear_cache:
-        renamer.clear_cached_matches()
     renamer.rename_replays(
         replay_dir=replay_dir,
         dry_run=dry_run,

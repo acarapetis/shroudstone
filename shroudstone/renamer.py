@@ -30,12 +30,6 @@ TOLERANCE = timedelta(seconds=90)
 BAD_CHARS = re.compile(r'[<>:"/\\|?*\0]')
 """Characters forbidden in filenames on Linux or Windows"""
 
-cache_dir = data_dir / "stormgateworld-cache"
-"""Directory in which match data is cached"""
-
-uuid_dir = cache_dir / "by_uuid"
-"""Directory in which UUID -> player_id mapping is cached"""
-
 skipped_replays_file = data_dir / "skipped_replays.txt"
 """Directory in which previouslyskipped replays are recorded"""
 
@@ -78,7 +72,7 @@ def migrate():
             "Cache files are from an incompatible version of shroudstone, deleting them."
         )
         skipped_replays_file.unlink(missing_ok=True)
-        rmtree(cache_dir, ignore_errors=True)
+        rmtree(data_dir / "stormgateworld-cache", ignore_errors=True)
     last_run_version_file.write_text(__version__, encoding="utf-8")
 
 
