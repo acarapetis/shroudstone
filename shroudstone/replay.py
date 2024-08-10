@@ -216,7 +216,7 @@ class AIType(IntEnum):
     MurderBotSr = 2
 
 
-@dataclass(slots=True)
+@dataclass()
 class Slot:
     type: SlotType = SlotType.Human
     faction: Faction = Faction(0)
@@ -240,7 +240,7 @@ class MatchType(IntEnum):
     Coop3ve = 3
 
 
-@dataclass(slots=True)
+@dataclass()
 class Client:
     uuid: UUID
     client_id: int
@@ -251,7 +251,7 @@ class Client:
     left_game_reason: LeftGameReason = LeftGameReason.Unknown
 
 
-@dataclass(slots=True)
+@dataclass()
 class SlotAssignment:
     slot_number: int
     nickname: str
@@ -261,7 +261,7 @@ def parse_uuid(uuid: pb.UUID) -> UUID:
     return UUID(bytes=struct.pack(">QQ", uuid.part1, uuid.part2))
 
 
-@dataclass(slots=True)
+@dataclass()
 class GameState:
     """Stormgate match state machine - reads commands from replay and updates state"""
 
