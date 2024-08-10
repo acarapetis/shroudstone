@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import gzip
-from io import BytesIO
 import logging
 import struct
 from collections import defaultdict
-from contextlib import contextmanager
+from dataclasses import dataclass, field
 from enum import IntEnum
+from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO, Dict, Iterable, List, Optional, Union
 from uuid import UUID
@@ -28,14 +27,13 @@ REPLAY_TIMESTAMP_UNIT = 1 / 1024
 FRIGATE = 55366
 
 
-@contextmanager
-def decompress(replay: Union[Path, BinaryIO]):
-    """Open a gzipped stormgate replay, skipping the 16-byte header."""
+def decompress(replay: Union[Path, BinaryIO]) -> BytesIO:
+    """Decompress a gzipped stormgate replay, skipping the 16-byte header."""
     if isinstance(replay, Path):
         replay = replay.open("rb")
     with replay:
         replay.seek(16)
-        yield BytesIO(gzip.decompress(replay.read()))
+        return BytesIO(gzip.decompress(replay.read()))
 
 
 def get_build_number(replay: Union[Path, BinaryIO]) -> int:
@@ -73,12 +71,12 @@ def read_varint(f: BinaryIO) -> Optional[int]:
 def split_replay(replay: Union[Path, BinaryIO]) -> Iterable[bytes]:
     """Split a replay into a sequence of chunks, each of which is a raw
     bytestring containing a wire-format encoding of a protobuf message."""
-    with decompress(replay) as f:
-        while True:
-            length = read_varint(f)
-            if length is None:
-                break
-            yield f.read(length)
+    f = decompress(replay)
+    while True:
+        length = read_varint(f)
+        if length is None:
+            break
+        yield f.read(length)
 
 
 class Spectator(BaseModel):
@@ -279,9 +277,9 @@ class GameState:
         self = cls()
         # Using split_replay adds a significant overhead to the runtime of this
         # function; so I've inlined this loop instead.
-        with decompress(replay) as f:
-            while length := read_varint(f):
-                self.process(pb.ReplayChunk.FromString(f.read(length)))
+        f = decompress(replay)
+        while length := read_varint(f):
+            self.process(pb.ReplayChunk.FromString(f.read(length)))
         return self
 
     def process(self, chunk: pb.ReplayChunk):
