@@ -123,30 +123,6 @@ def gui():
 
 
 @app.command(rich_help_panel="Replay renaming")
-def create_rename_replays_shortcut():
-    """Create a desktop icon to launch the rename-replays script."""
-    if platform.system() != "Windows":
-        logger.error("This subcommand is only currently available on Windows.")
-    else:
-        batch = (
-            Path(os.environ["USERPROFILE"]) / "Desktop" / "Rename Stormgate Replays.bat"
-        )
-        with batch.open("wt") as f:
-            print(
-                """
-@echo off
-python -m shroudstone rename-replays
-echo Press any key to close this window.
-pause >nul
-""",
-                file=f,
-            )
-        logger.info(
-            f"Batch file created at {batch} - should be visible on your desktop :)"
-        )
-
-
-@app.command(rich_help_panel="Replay renaming")
 def rename_replays(
     replay_dir: Annotated[
         Optional[Path],
