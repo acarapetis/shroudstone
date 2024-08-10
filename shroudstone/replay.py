@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gzip
+from io import BytesIO
 import logging
 import struct
 from collections import defaultdict
@@ -33,8 +34,7 @@ def decompress(replay: Union[Path, BinaryIO]):
         replay = replay.open("rb")
     with replay:
         replay.seek(16)
-        with gzip.GzipFile(fileobj=replay) as f2:
-            yield f2
+        yield BytesIO(gzip.decompress(replay.read()))
 
 
 def get_build_number(replay: Union[Path, BinaryIO]) -> int:
