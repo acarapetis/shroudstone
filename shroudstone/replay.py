@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import gzip
 from io import BytesIO
 import logging
@@ -212,7 +213,8 @@ class AIType(IntEnum):
     MurderBotSr = 2
 
 
-class Slot(BaseModel):
+@dataclass(slots=True)
+class Slot:
     type: SlotType = SlotType.Human
     faction: Faction = Faction(0)
     ai_type: Optional[AIType] = None
@@ -235,7 +237,8 @@ class MatchType(IntEnum):
     Coop3ve = 3
 
 
-class Client(BaseModel):
+@dataclass(slots=True)
+class Client:
     uuid: UUID
     client_id: int
     nickname: Optional[str] = None
@@ -245,7 +248,8 @@ class Client(BaseModel):
     left_game_reason: LeftGameReason = LeftGameReason.Unknown
 
 
-class SlotAssignment(BaseModel):
+@dataclass(slots=True)
+class SlotAssignment:
     slot_number: int
     nickname: str
 
@@ -254,14 +258,15 @@ def parse_uuid(uuid: pb.UUID) -> UUID:
     return UUID(bytes=struct.pack(">QQ", uuid.part1, uuid.part2))
 
 
-class GameState(BaseModel):
+@dataclass(slots=True)
+class GameState:
     """Stormgate match state machine - reads commands from replay and updates state"""
 
     map_name: Optional[str] = None
     match_type: MatchType = MatchType.Unknown
-    slots: Dict[int, Slot] = {}
-    clients: Dict[int, Client] = {}
-    slot_assignments: Dict[UUID, SlotAssignment] = {}
+    slots: Dict[int, Slot] = field(default_factory=dict)
+    clients: Dict[int, Client] = field(default_factory=dict)
+    slot_assignments: Dict[UUID, SlotAssignment] = field(default_factory=dict)
     game_started: bool = False
     game_started_time: Optional[float] = None
 
