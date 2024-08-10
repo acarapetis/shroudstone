@@ -52,8 +52,11 @@ def get_build_number(replay: Union[Path, BinaryIO]) -> int:
     return x
 
 
-def read_varint(f) -> Optional[int]:
+def read_varint(f: BinaryIO) -> Optional[int]:
     """Read a base-7 varint from a binary stream, or return None if the stream is at EOF."""
+    # This recursive implementation would be slow for large varints; but since almost
+    # all replay chunks are <128 bytes, we very rarely actually recurse; and on averaget
+    # his ends up signficantly faster than an iterative implementation.
     bs = f.read(1)
     if len(bs) == 0:
         return None
@@ -274,9 +277,11 @@ class GameState:
     def at_end_of(cls, replay: Union[Path, BinaryIO]) -> GameState:
         """Simulate an entire replay and return the end state."""
         self = cls()
-        for bytestring in split_replay(replay):
-            chunk = pb.ReplayChunk.FromString(bytestring)
-            self.process(chunk)
+        # Using split_replay adds a significant overhead to the runtime of this
+        # function; so I've inlined this loop instead.
+        with decompress(replay) as f:
+            while length := read_varint(f):
+                self.process(pb.ReplayChunk.FromString(f.read(length)))
         return self
 
     def process(self, chunk: pb.ReplayChunk):
