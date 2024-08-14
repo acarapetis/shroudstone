@@ -305,17 +305,13 @@ class GameState:
                 slot_count = 2
             elif self.match_type == MatchType.Coop3ve:
                 slot_count = 3
+            elif slot_count := player_slot_count.get(msg.map_name):
+                pass
             else:
-                try:
-                    # Fall back to old system
-                    slot_count = player_slot_count[msg.map_name]
-                except KeyError:
-                    raise ReplayParsingError(
-                        f"Unknown map {msg.map_name} - cannot correctly determine player slots!"
-                    )
+                logger.warning(f"Unknown map name {msg.map_name} - assuming it's two-player.")
+                slot_count = 2
 
             logger.debug(f"MatchType: {self.match_type}")
-
             logger.debug(f"Setting up {slot_count} slots for map {self.map_name}")
             for i in range(1, slot_count + 1):
                 self.slots[i] = Slot()
