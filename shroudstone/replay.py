@@ -5,7 +5,6 @@ from __future__ import annotations
 import gzip
 import logging
 import struct
-from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import IntEnum
 from io import BytesIO
@@ -173,22 +172,28 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
     return info
 
 
-# Unfortunately, to correctly determine who's in player slots and who's in
-# spectator slots we need to know how many players the map has; and this
-# metadata is not included in the replay.
-# For now, we just hardcode the known co-op maps.
-player_slot_count: Dict[str, int] = defaultdict(
-    lambda: 2,
-    {
-        "WreckHavoc": 3,
-        "TheAbyssalGates": 3,
-        "TurfWar": 3,
-        "IsleOfDread": 3,
-        "RitualWoods": 3,
-        "InfestedCrater": 3,
-        "CrookedCanyon": 3,
-    },
-)
+# Unfortunately, to correctly determine who's in player slots and who's in spectator
+# slots we need to know how many players the map has; and this metadata is not included
+# in the replay. (We have MatchType info now, but this doesn't help for Custom games.)
+# For now, we just hardcode the known maps.
+player_slot_count: Dict[str, int] = {
+    "Boneyard": 2,
+    "BrokenCrown": 2,
+    "IsleOfDread": 2,
+    "LostHope": 2,
+    "SecludedGroveV2": 2,
+    "TitansCausewayV2": 2,
+    "JaggedMaw": 2,
+    "CrookedCanyon": 3,
+    "InfestedCrater": 3,
+    "RitualWoods": 3,
+    "TheAbyssalGates": 3,
+    "TurfWar": 3,
+    "WreckHavoc": 3,
+    "Boneyard2v2": 4,
+    "DustDevil2v2": 4,
+    "Evergreen2v2": 4,
+}
 
 
 class SlotType(IntEnum):
@@ -301,7 +306,13 @@ class GameState:
             elif self.match_type == MatchType.Coop3ve:
                 slot_count = 3
             else:
-                slot_count = player_slot_count[msg.map_name]  # Fall back to old sysyem
+                try:
+                    # Fall back to old system
+                    slot_count = player_slot_count[msg.map_name]
+                except KeyError:
+                    raise ReplayParsingError(
+                        f"Unknown map {msg.map_name} - cannot correctly determine player slots!"
+                    )
 
             logger.debug(f"MatchType: {self.match_type}")
 
