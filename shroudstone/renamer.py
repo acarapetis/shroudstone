@@ -246,9 +246,9 @@ def get_result(replay: Replay):
         return None
     if replay.summary.build_number >= FRIGATE:
         # Since Frigate we've had explicit surrender messages, so we rely on them alone for certainty:
-        if replay.us.leave_reason == "surrender":
+        if replay.us.leave_reason == "Surrender":
             return "loss"
-        if replay.them.leave_reason == "surrender":
+        if replay.them.leave_reason == "Surrender":
             return "win"
         return None
     else:
