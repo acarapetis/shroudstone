@@ -73,6 +73,8 @@ def split_replay(replay: Union[Path, BinaryIO]) -> Iterable[bytes]:
 # in the replay. (We have MatchType info now, but this doesn't help for Custom games.)
 # For now, we just hardcode the known maps.
 player_slot_count: Dict[str, int] = {
+    "SecludedGrove": 2,
+    "Lost_Hope_V01": 2,
     "Boneyard": 2,
     "BrokenCrown": 2,
     "IsleOfDread": 2,
