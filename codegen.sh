@@ -4,4 +4,4 @@
 # Haven't bothered integrating this with the python package build, should
 # change rarely enough that a manual rebuild is fine.
 
-protoc --python_out=shroudstone --pyi_out=shroudstone stormgate.proto
+protoc --python_out=shroudstone/replay --pyi_out=shroudstone/replay stormgate.proto

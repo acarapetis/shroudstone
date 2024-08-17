@@ -1,6 +1,6 @@
 import json
 
-from shroudstone.replay import summarize_replay
+from shroudstone.replay.summary import summarize_replay
 from tests.conftest import ReplayCase
 
 def test_replay_renaming(replay_case: ReplayCase, request):

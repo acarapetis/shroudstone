@@ -19,7 +19,8 @@ from typing_extensions import Literal
 
 from shroudstone import __version__
 from shroudstone.config import data_dir
-from shroudstone.replay import FRIGATE, Player, ReplaySummary, summarize_replay
+from shroudstone.replay.summary import Player, ReplaySummary, summarize_replay
+from shroudstone.replay.versions import FRIGATE
 
 logger = logging.getLogger(__name__)
 

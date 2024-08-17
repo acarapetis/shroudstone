@@ -53,7 +53,7 @@ def callback(
 @app.command(rich_help_panel="Tools for nerds")
 def get_replay_info(replay_file: typer.FileBinaryRead):
     """Extract information from a replay, outputting it in JSON format."""
-    from shroudstone.replay import summarize_replay
+    from shroudstone.replay.summary import summarize_replay
 
     typer.echo(summarize_replay(replay_file).model_dump_json(indent=2))
 
@@ -61,7 +61,7 @@ def get_replay_info(replay_file: typer.FileBinaryRead):
 @app.command(rich_help_panel="Tools for nerds")
 def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
     """Extract a stormgate replay into a directory containing individual protoscope messages."""
-    from shroudstone.replay import split_replay
+    from shroudstone.replay.parser import split_replay
 
     output_directory.mkdir(exist_ok=True, parents=True)
     i = 0
@@ -75,8 +75,8 @@ def split_replay(replay_file: typer.FileBinaryRead, output_directory: Path):
 @app.command(rich_help_panel="Tools for nerds")
 def dump_replay(replay_file: typer.FileBinaryRead):
     """Decode a replay and print a human-readable-ish representation of its contents."""
-    from shroudstone.replay import split_replay
-    from shroudstone.stormgate_pb2 import ReplayChunk
+    from shroudstone.replay.parser import split_replay
+    from shroudstone.replay.stormgate_pb2 import ReplayChunk
 
     for bytestring in split_replay(replay_file):
         chunk = ReplayChunk.FromString(bytestring)
