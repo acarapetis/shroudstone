@@ -21,7 +21,7 @@ class QueueHandler(logging.Handler):
 
 class LogView(tk.Toplevel):
     textbox: ScrolledText
-    queue: Queue[logging.LogRecord]
+    queue: "Queue[logging.LogRecord]"
     handler: QueueHandler
 
     def __init__(self, *args, **kwargs):
