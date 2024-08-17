@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 import logging
 import os
 import platform
@@ -19,6 +20,7 @@ from typing_extensions import Literal
 
 from shroudstone import __version__
 from shroudstone.config import data_dir
+from shroudstone.replay.parser import LeftGameReason
 from shroudstone.replay.summary import Player, ReplaySummary, summarize_replay
 from shroudstone.replay.versions import FRIGATE
 
@@ -246,9 +248,9 @@ def get_result(replay: Replay):
         return None
     if replay.summary.build_number >= FRIGATE:
         # Since Frigate we've had explicit surrender messages, so we rely on them alone for certainty:
-        if replay.us.leave_reason == "Surrender":
+        if replay.us.leave_reason == LeftGameReason.Surrender:
             return "loss"
-        if replay.them.leave_reason == "Surrender":
+        if replay.them.leave_reason == LeftGameReason.Surrender:
             return "win"
         return None
     else:
@@ -261,6 +263,12 @@ def get_result(replay: Replay):
             return "loss"
         elif t2:
             return "win"
+
+
+def _cap(x: Optional[Enum]):
+    if x is None:
+        return ""
+    return x.name.capitalize()
 
 
 def new_name_for(replay: Replay, format_1v1: str, format_generic: str) -> str:
@@ -283,8 +291,8 @@ def new_name_for(replay: Replay, format_1v1: str, format_generic: str) -> str:
         parts["us"] = parts["p1"] = us.nickname
         parts["them"] = parts["p2"] = them.nickname
 
-        parts["r1"] = parts["f1"] = (us.faction or "").capitalize()
-        parts["r2"] = parts["f2"] = (them.faction or "").capitalize()
+        parts["r1"] = parts["f1"] = _cap(us.faction)
+        parts["r2"] = parts["f2"] = _cap(them.faction)
 
         result = get_result(replay)
         parts["result"] = (result or "unknown").capitalize()
@@ -295,7 +303,7 @@ def new_name_for(replay: Replay, format_1v1: str, format_generic: str) -> str:
             p.nickname.capitalize() for p in replay.summary.players
         )
         parts["players_with_factions"] = ", ".join(
-            f"{p.nickname.capitalize()} {(p.faction or '').upper():.1}"
+            f"{p.nickname.capitalize()} {_cap(p.faction).upper():.1}"
             for p in replay.summary.players
         )
         newname = format_generic.format(**parts)

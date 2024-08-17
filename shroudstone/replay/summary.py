@@ -1,20 +1,42 @@
 """Summarize Stormgate replays into a JSON schema."""
+
 from __future__ import annotations
 
 import logging
+from enum import Enum
 from pathlib import Path
-from typing import BinaryIO, List, Optional, Union
+from typing import BinaryIO, List, Optional, Type, Union
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, BeforeValidator, PlainSerializer
+from typing_extensions import Annotated, TypeVar
 
-from .parser import GameState, get_build_number
+from .parser import Faction, GameState, LeftGameReason, get_build_number
 
 logger = logging.getLogger(__name__)
 
 # My empirical testing found that the timestamps in replays seem to be in units of ~0.976ms.
 # This is very close to 1/1024 of a second, so we'll assume that this is the exact value.
 REPLAY_TIMESTAMP_UNIT = 1 / 1024
+
+
+T = TypeVar("T", bound=Enum)
+
+
+def _from_name(t: Type[T]):
+    def get(n: Union[str, T]) -> T:
+        if isinstance(n, Enum):
+            return n
+        return getattr(t, n)
+
+    return get
+
+
+def _validator(t: Type[T]):
+    return BeforeValidator(_from_name(t))
+
+
+_serialize = PlainSerializer(lambda x: x.name, when_used="json-unless-none")
 
 
 class InvalidGameState(Exception):
@@ -31,10 +53,12 @@ class Player(BaseModel):
     nickname: str
     nickname_discriminator: Optional[str] = None
     uuid: Optional[UUID] = None
-    faction: Optional[str] = None
+    faction: Annotated[Optional[Faction], _validator(Faction), _serialize]
     is_ai: bool = False
     disconnect_time: Optional[float] = None
-    leave_reason: str = "unknown"
+    leave_reason: Annotated[LeftGameReason, _validator(LeftGameReason), _serialize] = (
+        LeftGameReason.Unknown
+    )
 
 
 class ReplaySummary(BaseModel):
@@ -67,7 +91,7 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                 Player(
                     nickname=slot.ai_type.name,
                     is_ai=True,
-                    faction=slot.faction.name,
+                    faction=slot.faction,
                 )
             )
         elif slot.client_id is not None:
@@ -82,7 +106,7 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                     nickname_discriminator=client.discriminator,
                     uuid=client.uuid,
                     is_ai=False,
-                    faction=slot.faction.name,
+                    faction=slot.faction,
                 )
             )
             if (
@@ -92,7 +116,7 @@ def summarize_replay(replay: Union[Path, BinaryIO]) -> ReplaySummary:
                 p.disconnect_time = (
                     client.left_game_time - state.game_started_time
                 ) * REPLAY_TIMESTAMP_UNIT
-            p.leave_reason = client.left_game_reason.name
+            p.leave_reason = client.left_game_reason
     for client in state.clients.values():
         if client.slot_number != 255:
             raise InvalidGameState("Player not in a slot but slot_number != 255?")
