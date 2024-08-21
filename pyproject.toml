@@ -14,6 +14,7 @@ classifiers = [
 keywords = ["Stormgate"]
 dynamic = ["version", "description"]
 dependencies = [
+    "packaging>=20.4",
     "pillow>=5.0",
     "protobuf~=5.27.3",
     "pydantic~=2.6",
