@@ -238,6 +238,19 @@ class GameState:
                     f"Putting player {client_id} in pre-assigned slot {client.slot_number}"
                 )
 
+        elif isinstance(msg, pb.PlayerAlt):
+            client = self.clients[client_id]
+            if msg.name.nickname and client.nickname is None:
+                client.nickname = msg.name.nickname
+                logger.debug(
+                    f"Filling in player {client_id} nickname: {client.nickname} {client.uuid}"
+                )
+            if msg.name.discriminator and client.discriminator is None:
+                client.discriminator = msg.name.discriminator
+                logger.debug(
+                    f"Filling in player {client_id} discriminator: {client.discriminator} {client.uuid}"
+                )
+
         elif isinstance(msg, pb.ClientConnected):
             if not msg.HasField("uuid"):
                 # We should have already filled in the player details in handle_player,

@@ -22,6 +22,7 @@ message ReplayChunk {
                 PlayerLeftGame player_left_game = 25;
                 ClientDisconnected client_disconnected = 31;
                 AssignPlayerSlot assign_player_slot = 37;
+                PlayerAlt player_alt = 45;
             }
         }
         ReplayContent content = 1;
@@ -118,6 +119,15 @@ message AssignPlayerSlot {
     UUID uuid = 1;
     int64 slot = 2;
     string nickname = 3;
+}
+
+// 45 - Sent by a player when they join a game
+message PlayerAlt {
+    message PlayerNameAlt {
+        string nickname = 1;
+        string discriminator = 2;
+    }
+    PlayerNameAlt name = 5;
 }
 
 // UUIDs are encoded as 2 varints.
