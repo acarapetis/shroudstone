@@ -240,12 +240,12 @@ class GameState:
 
         elif isinstance(msg, pb.PlayerAlt):
             client = self.clients[client_id]
-            if client.nickname is None:
+            if msg.name.nickname and client.nickname is None:
                 client.nickname = msg.name.nickname
                 logger.debug(
                     f"Filling in player {client_id} nickname: {client.nickname} {client.uuid}"
                 )
-            if client.discriminator is None:
+            if msg.name.discriminator and client.discriminator is None:
                 client.discriminator = msg.name.discriminator
                 logger.debug(
                     f"Filling in player {client_id} discriminator: {client.discriminator} {client.uuid}"
