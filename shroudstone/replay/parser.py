@@ -16,12 +16,30 @@ from . import stormgate_pb2 as pb
 
 logger = logging.getLogger(__name__)
 
+
+class ReplayParsingError(Exception):
+    pass
+
+
 def decompress(replay: Union[Path, BinaryIO]) -> BytesIO:
-    """Decompress a gzipped stormgate replay, skipping the 16-byte header."""
+    """Decompress the gzipped part of a stormgate replay, skipping the header.
+
+    The header contains its own size at offset 8, which allows for parsing
+    replays with different header sizes.
+    """
     if isinstance(replay, Path):
         replay = replay.open("rb")
     with replay:
-        replay.seek(16)
+        # Read the header size from the file itself (at offset 8)
+        replay.seek(8)
+        (header_size,) = struct.unpack("<i", replay.read(4))
+
+        # As a safety check, ensure header_size is reasonable
+        if header_size < 16 or header_size > 256:
+            raise ReplayParsingError("Invalid header size")
+
+        # Skip header and decompress
+        replay.seek(header_size)
         return BytesIO(gzip.decompress(replay.read()))
 
 
@@ -348,7 +366,3 @@ class GameState:
             logger.debug("Marking game as started")
             self.game_started = True
             self.game_started_time = float(timestamp)
-
-
-class ReplayParsingError(Exception):
-    pass
