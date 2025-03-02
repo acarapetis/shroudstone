@@ -17,7 +17,7 @@ from pystray._base import Icon as BaseIcon
 from shroudstone import __version__, config, renamer
 from shroudstone.gui.fonts import setup_style
 from shroudstone.gui.logview import LogView
-from shroudstone.logging import configure_logging
+from shroudstone.log_utils import configure_logging
 
 from .jobs import TkWithJobs
 
@@ -169,7 +169,7 @@ def run():
 
     root = App(className="Shroudstone")
     setup_style(root)
-    setup_window_icon(root)
+   # setup_window_icon(root)
 
     if cfg.replay_dir is None:
         root.after(0, lambda: configure_replay_dir(root, root.vars, cfg))

@@ -17,12 +17,48 @@ from . import stormgate_pb2 as pb
 logger = logging.getLogger(__name__)
 
 def decompress(replay: Union[Path, BinaryIO]) -> BytesIO:
-    """Decompress a gzipped stormgate replay, skipping the 16-byte header."""
+    """Decompress a gzipped stormgate replay with dynamic header size.
+    
+    The header contains its own size at offset 8, which allows for parsing
+    replays with different header sizes.
+    """
     if isinstance(replay, Path):
         replay = replay.open("rb")
     with replay:
-        replay.seek(16)
-        return BytesIO(gzip.decompress(replay.read()))
+        # Read the header size from the file itself (at offset 8)
+        replay.seek(8)
+        (header_size,) = struct.unpack("<i", replay.read(4))
+        
+        # As a safety check, ensure header_size is reasonable
+        if header_size < 16 or header_size > 256:
+            logger.warning(f"Unusual header size detected: {header_size}, falling back to 24")
+            header_size = 24  # Fall back to known working size
+        
+        # Get the build number for logging
+        replay.seek(12)
+        (build_number,) = struct.unpack("<i", replay.read(4))
+        logger.debug(f"Decompressing replay with build {build_number}, header size {header_size}")
+        
+        # Skip header and decompress
+        replay.seek(header_size)
+        try:
+            return BytesIO(gzip.decompress(replay.read()))
+        except gzip.BadGzipFile as e:
+            logger.error(f"Failed to decompress replay (build {build_number}): {e}")
+            
+            # Fallback options if dynamic header doesn't work
+            fallback_sizes = [16, 24, 32]  # Try common header sizes
+            for size in fallback_sizes:
+                if size != header_size:
+                    try:
+                        logger.info(f"Trying fallback header size: {size}")
+                        replay.seek(size)
+                        return BytesIO(gzip.decompress(replay.read()))
+                    except Exception:
+                        continue
+            
+            # If all fallbacks fail, reraise the original error
+            raise
 
 
 def get_build_number(replay: Union[Path, BinaryIO]) -> int:
