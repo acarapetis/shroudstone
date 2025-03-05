@@ -124,6 +124,7 @@ class Faction(IntEnum):
     Celestial = 2
     Blockade = 101
     Amara = 102
+    Ryker = 103
     Maloc = 201
     Warz = 202
     Auralanna = 301
